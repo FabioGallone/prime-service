@@ -232,8 +232,8 @@ def wait_for_ready_replicas(target_replicas, max_wait=120):
             if result.returncode == 0:
                 deployment_info = json.loads(result.stdout)
                 ready_replicas = deployment_info.get('status', {}).get('readyReplicas', 0)
-                if ready_replicas == target_replicas:
-                    print(f"✓ All {target_replicas} replicas are ready!")
+                if ready_replicas >= target_replicas:
+                    print(f"✓ At least {target_replicas} replicas are ready (found {ready_replicas})!")
                     return True
                 else:
                     print(f"  Waiting... {ready_replicas}/{target_replicas} ready")
