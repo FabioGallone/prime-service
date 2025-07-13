@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prime-service
+  namespace: prime-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prime-service
+  template:
+    metadata:
+      labels:
+        app: prime-service
+    spec:
+      containers:
+      - name: prime-service
+        image: prime-service:v1.0.0
+        imagePullPolicy: Never  
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /prime/2
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10

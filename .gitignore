@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+env/
+# Virtualenv
+venv/
+# Logs
+*.log
+# ENV files
+.env
+# Mac
+.DS_Store
+# Docker
+*.log
+# Kubernetes
+*.yaml.k8s
+# VSCode
+.vscode/
