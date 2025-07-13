@@ -9,9 +9,9 @@ import random
 import subprocess
 
 # CONFIGURAZIONE
-PRIME_API = "http://localhost:8080/prime/{}"
+FACTORIAL_API = "http://localhost:8080/prime/{}"  # Usa endpoint compatibilità 
 PROM_URL = "http://localhost:9090"
-CSV_FILE = "resource_dataset.csv"
+CSV_FILE = "factorial_dataset.csv"
 
 # Limiti del container (AGGIORNA QUESTI per CPU potenti!)
 CPU_LIMIT_CORES = 2.0  # Aumentato da 0.5 a 2.0 core
@@ -90,7 +90,7 @@ def worker(queue, response_times):
             n = queue.pop()
             start = time.time()
             try:
-                r = requests.get(PRIME_API.format(n), timeout=15)
+                r = requests.get(FACTORIAL_API.format(n), timeout=15)
                 r.raise_for_status()
             except:
                 continue
@@ -150,11 +150,11 @@ def generate_intensive_load(intensity_level):
     """
     
     # PARAMETRI ULTRA-AGGRESSIVI per simulare molti più utenti
-    base_concurrency = 100        # Partenza più alta
-    max_concurrency = 1500       # Fino a 1000 utenti simultanei! 🔥
+    base_concurrency = 50        # Partenza più alta
+    max_concurrency = 1000       # Fino a 1000 utenti simultanei! 🔥
     
-    base_queue_size = 500
-    max_queue_size = 7500             # Molto più carico
+    base_queue_size = 100
+    max_queue_size = 5000        # Molto più carico
     
     # Scala lineare dell'intensità
     concurrency = int(base_concurrency + (max_concurrency - base_concurrency) * (intensity_level / 50.0))
@@ -166,31 +166,22 @@ def generate_intensive_load(intensity_level):
         difficulty_roll = random.random()
         
         if intensity_level <= 10:
-            # Livelli bassi: numeri moderati per iniziare il ramp-up
+            # Livelli bassi: fattoriali piccoli-medi
             if difficulty_roll < 0.5:
-                queue.append(random.randint(10000, 100000))      # Medium-fast
+                queue.append(random.randint(500, 3000))      # factorial(3000) → ~0.5s
             elif difficulty_roll < 0.7:
-                queue.append(random.randint(100000, 500000))     # Medium
+                queue.append(random.randint(3000, 8000))     # factorial(8000) → ~2s
             else:
-                queue.append(random.randint(500000, 1000000))    # Slow
+                queue.append(random.randint(8000, 15000))    # factorial(15000) → ~8s
         
         elif intensity_level <= 25:
-            # Livelli medi: numeri più impegnativi
+            # Livelli alti: fattoriali intensi per stress CPU
             if difficulty_roll < 0.2:
-                queue.append(random.randint(100000, 500000))     # Medium
+                queue.append(random.randint(8000, 15000))    # Slow
             elif difficulty_roll < 0.5:
-                queue.append(random.randint(1000000, 3000000))   # Slow
+                queue.append(random.randint(15000, 25000))   # Very slow  
             else:
-                queue.append(random.randint(3000000, 8000000))   # Very slow
-        
-        else:
-            # Livelli alti: numeri ESTREMAMENTE difficili per saturare Ryzen
-            if difficulty_roll < 0.1:
-                queue.append(random.randint(3000000, 8000000))   # Very slow
-            elif difficulty_roll < 0.4:
-                queue.append(random.randint(8000000, 25000000))  # ULTRA slow
-            else:
-                queue.append(random.randint(25000000, 100000000)) # BEAST MODE per Ryzen! 🔥
+                queue.append(random.randint(25000, 50000))   # ULTRA slow! 🔥
     
     print(f"    🔥 Generated load: concurrency={concurrency}, queue_size={queue_size}")
     return concurrency, queue
@@ -203,13 +194,13 @@ def run_intensive_gradual_simulation():
     print("💪 High-stress testing for rich dataset generation")
     print("📈 50 intensity levels × multiple replicas × iterations")
     
-    # CONFIGURAZIONI INTENSIVE per dataset ricco
-    replica_configs = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12]  # 10 configurazioni
+    # CONFIGURAZIONI RIDOTTE per test più veloce
+    replica_configs = [1, 2, 4, 8]  # 4 configurazioni invece di 10
     
-    # 75 LIVELLI GRADUALI di intensità per granularità fine
-    intensity_levels = list(range(1, 76))  # 1, 2, 3, ..., 75
+    # 25 LIVELLI invece di 75 per test più rapidi  
+    intensity_levels = list(range(1, 26))  # 1, 2, 3, ..., 25
     
-    iterations = 3  # Più iterazioni per variabilità statistica
+    iterations = 2  # 2 iterazioni invece di 3
     
     # Inizializza CSV
     with open(CSV_FILE, 'w', newline='') as f:
@@ -241,7 +232,7 @@ def run_intensive_gradual_simulation():
                 test_count += 1
                 progress = (test_count / total_tests) * 100
                 
-                print(f"  🧪 Test {test_count:4d} [{progress:5.1f}%]: level={intensity_level:2d}/50")
+                print(f"  🧪 Test {test_count:4d} [{progress:5.1f}%]: level={intensity_level:2d}/25")
                 
                 # Genera carico INTENSO
                 concurrency, queue = generate_intensive_load(intensity_level)

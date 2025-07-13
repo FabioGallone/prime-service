@@ -75,7 +75,7 @@ eval $(minikube docker-env)  # Linux/Mac
 minikube docker-env | Invoke-Expression  # Windows PowerShell
 
 # Costruisci l'immagine Docker
-docker build -t prime-service:v1.0.0 .
+docker build -t factorial-service:v1.0.0 .
 ```
 
 ### 2. **Deploy del namespace e servizi base**
@@ -88,8 +88,7 @@ kubectl apply -f k8s/namespace.yaml
 kubectl apply -n prime-service -f k8s/deployment.yaml
 kubectl apply -n prime-service -f k8s/service.yaml
 
-# Configura l'Horizontal Pod Autoscaler (HPA)
-kubectl apply -n prime-service -f k8s/hpa.yaml
+
 ```
 
 ### 3. **Installa kube-state-metrics (IMPORTANTE per le metriche)**
