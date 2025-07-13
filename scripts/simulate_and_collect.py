@@ -149,12 +149,12 @@ def generate_intensive_load(intensity_level):
     intensity_level: 1-50 (50 livelli graduali)
     """
     
-    # PARAMETRI AGGRESSIVI per 2-core container su Ryzen potente
-    base_concurrency = 15
-    max_concurrency = 200  # Molto aggressivo
+    # PARAMETRI ULTRA-AGGRESSIVI per simulare molti più utenti
+    base_concurrency = 100        # Partenza più alta
+    max_concurrency = 1500       # Fino a 1000 utenti simultanei! 🔥
     
-    base_queue_size = 60
-    max_queue_size = 1200  # Carico massiccio
+    base_queue_size = 500
+    max_queue_size = 7500             # Molto più carico
     
     # Scala lineare dell'intensità
     concurrency = int(base_concurrency + (max_concurrency - base_concurrency) * (intensity_level / 50.0))
@@ -215,7 +215,7 @@ def run_intensive_gradual_simulation():
     with open(CSV_FILE, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow([
-            "timestamp", "iteration", "replicas", "intensity_level",
+            "timestamp", "iteration", "replicas", "intensity_level", "concurrent_users",
             "req_per_sec", "response_time_avg", 
             "cpu_percent", "memory_percent", 
             "power_per_container", "total_power"
@@ -286,7 +286,7 @@ def run_intensive_gradual_simulation():
                 with open(CSV_FILE, 'a', newline='') as f:
                     writer = csv.writer(f)
                     writer.writerow([
-                        time.time(), iteration+1, current_replicas, intensity_level,
+                        time.time(), iteration+1, current_replicas, intensity_level, concurrency,
                         round(actual_rps, 1), round(avg_response_time, 4),
                         round(cpu_percent, 1), round(mem_percent, 1),
                         round(power_per_container, 2), round(total_power, 2)
