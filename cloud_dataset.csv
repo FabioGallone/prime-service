@@ -1,0 +1,1 @@
+timestamp,scenario,simulated_hour,load_intensity,req_per_sec,response_time_avg_s,cpu_usage_percent,memory_usage_percent,replica_count,power_per_container_watts,total_power_watts
