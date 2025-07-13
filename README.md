@@ -32,138 +32,110 @@ prime-service/
 
 ## ⚙️ Prerequisiti
 
-* **Python 3.8+**
-* **Docker** (per il container)
-* **kubectl** e **un cluster Kubernetes** (min. v1.20+)
-* **Prometheus** (opzionale, per il monitoraggio)
+* **kubectl**
+* **Minikube** (o altro cluster Kubernetes)
+* **Python 3.8+** (solo per lo script di simulazione)
+
+### 🔧 Installazione di Minikube
+
+#### Su **Windows**:
+
+1. Scarica l'installer da:
+   [https://minikube.sigs.k8s.io/docs/start/](https://minikube.sigs.k8s.io/docs/start/)
+2. Installa e verifica:
+
+   ```powershell
+   minikube version
+   minikube start
+   ```
+
+#### Su **Linux**:
+
+```bash
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+minikube start
+```
 
 ---
 
-## 🚀 Esecuzione in locale (senza Docker)
+## ☘️ Deploy su Kubernetes con Minikube
 
 1. **Clona il repository**
 
-   ```bash
-   git clone https://github.com/<tuo-utente>/prime-service.git
-   cd prime-service
-   ```
+```bash
+git clone https://github.com/FabioGallone/prime-service.git
+cd prime-service
+```
 
-2. **Crea e attiva un ambiente virtuale**
+2. **Crea il namespace**
 
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
+```bash
+kubectl apply -f k8s/namespace.yaml
+```
 
-3. **Installa le dipendenze**
+3. **Deploy del servizio**
 
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
+```bash
+kubectl apply -n prime-service -f k8s/deployment.yaml
+kubectl apply -n prime-service -f k8s/service.yaml
+```
 
-4. **Avvia il servizio**
+4. **Configura l'Horizontal Pod Autoscaler (HPA)**
 
-   ```bash
-   uvicorn src.prime_service:app --host 0.0.0.0 --port 8000
-   ```
+```bash
+kubectl apply -n prime-service -f k8s/hpa.yaml
+```
 
-   * L’API sarà disponibile su `http://localhost:8000`
-   * Le metriche Prometheus su `http://localhost:8000/metrics`
+5. **Installa Prometheus nel cluster (opzionale)**
 
----
+```bash
+kubectl apply -n prime-service -f prometheus/prometheus-configmap.yaml
+kubectl apply -n prime-service -f prometheus/prometheus-deployment.yaml
+kubectl apply -n prime-service -f prometheus/prometheus-service.yaml
+```
 
-## 🐳 Esecuzione con Docker
+6. **Esporre le porte con `port-forward`**
 
-1. **Build dell’immagine**
+In tre terminali distinti:
 
-   ```bash
-   docker build -t prime-service:latest .
-   ```
+```bash
+# Per accedere all'API FastAPI (porta 8080 -> servizio)
+kubectl port-forward -n prime-service service/prime-service 8080:80
+```
 
-2. **Avvio del container**
+```bash
+# Per accedere a Prometheus (porta 9090 -> Prometheus)
+kubectl port-forward -n prime-service service/prometheus 9090:9090
+```
 
-   ```bash
-   docker run -d \
-     --name prime-service \
-     -p 8000:8000 \
-     prime-service:latest
-   ```
+```bash
+# Per simulare carico con metrica push (porta 8001 -> FastAPI)
+kubectl port-forward -n prime-service service/prime-service 8001:8001
+```
 
-   * API: `http://localhost:8000`
-   * Metricas: `http://localhost:8000/metrics`
-
----
-
-## ☸️ Deploy su Kubernetes
-
-1. **Crea il namespace**
-
-   ```bash
-   kubectl apply -f k8s/namespace.yaml
-   ```
-
-2. **Deploy del servizio**
-
-   ```bash
-   kubectl apply -n prime-service -f k8s/deployment.yaml
-   kubectl apply -n prime-service -f k8s/service.yaml
-   ```
-
-3. **Configura l’Horizontal Pod Autoscaler (HPA)**
-
-   ```bash
-   kubectl apply -n prime-service -f k8s/hpa.yaml
-   ```
-
-4. **Installa/aggiorna Prometheus (opzionale)**
-
-   ```bash
-   kubectl apply -n prime-service -f prometheus/prometheus-configmap.yaml
-   kubectl apply -n prime-service -f prometheus/prometheus-deployment.yaml
-   kubectl apply -n prime-service -f prometheus/prometheus-service.yaml
-   ```
-
-   * Prometheus inizierà a fare scrape delle metriche esposte dal servizio.
+* API disponibile su: `http://localhost:8080`
+* Prometheus disponibile su: `http://localhost:9090`
+* Endpoint di metrica custom push: `http://localhost:8001/metrics` (per lo script)
 
 ---
 
 ## 🔄 Simulazione di carico e raccolta metriche
 
-Per testare il servizio e popolare Prometheus:
+1. **Installa le dipendenze Python**:
 
-1. Assicurati di aver installato le dipendenze (vedi **Esecuzione in locale**).
-2. **Esegui lo script**
+```bash
+pip install -r requirements.txt
+```
 
-   ```bash
-   python scripts/simulate_and_collect.py
-   ```
+2. **Esegui lo script di simulazione**
 
-   * Lo script usa il dataset `scripts/prime_dataset.csv` per invocare ripetutamente l’API.
-   * Le metriche raccolte verranno inviate a Prometheus (configurato in `simulate_and_collect.py`).
+```bash
+python scripts/simulate_and_collect.py
+```
 
----
-
-## 📑 File principali
-
-* **`src/prime_service.py`**
-
-  * FastAPI app con endpoint per il calcolo di numeri primi e metriche Prometheus.
-
-* **`scripts/simulate_and_collect.py`**
-
-  * Script di simulazione che genera richieste all’API e invia metriche personalizzate.
-
-* **`k8s/`**
-
-  * Manifests per namespace, deployment, service e HPA.
-
-* **`prometheus/`**
-
-  * Manifests per configurare Prometheus nel cluster Kubernetes.
+* Lo script usa il dataset `scripts/prime_dataset.csv` per invocare ripetutamente l’API.
+* Le metriche raccolte verranno inviate a Prometheus (configurato in `simulate_and_collect.py`).
 
 ---
 
-## 📄 Licenza
-
-Questo progetto è rilasciato sotto licenza MIT. Consulta il file `LICENSE` per maggiori dettagli.
