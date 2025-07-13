@@ -50,23 +50,97 @@ def query_prom_multiple(queries):
                 return float(result[0]['value'][1])
         except Exception as e:
             print(f"Query fallita '{query}': {e}")
+            continue
     return 0.0
 
-# Test delle query disponibili
-print("Testing available metrics...")
-test_queries = [
-    'prime_requests_total',
-    'prime_inprogress_requests', 
-    'prime_request_latency_seconds_sum',
-    'kube_deployment_status_replicas{deployment="prime-service"}',
-    'container_cpu_usage_seconds_total',
-    'container_memory_working_set_bytes',
-    'up'
-]
+def debug_available_metrics():
+    """Debug per scoprire quali metriche sono disponibili"""
+    print("\n=== DEBUG: Metriche disponibili ===")
+    
+    # Lista delle metriche più comuni
+    common_metrics = [
+        'up',
+        'prometheus_build_info',
+        'prime_requests_total',
+        'prime_inprogress_requests',
+        'prime_request_latency_seconds_sum',
+        'prime_request_latency_seconds_count',
+        'container_cpu_usage_seconds_total',
+        'container_memory_working_set_bytes',
+        'container_memory_usage_bytes',
+        'kube_deployment_status_replicas',
+        'kube_pod_info',
+        'cadvisor_version_info'
+    ]
+    
+    for metric in common_metrics:
+        try:
+            result = prom.custom_query(query=metric)
+            if result:
+                print(f"✓ {metric}: {len(result)} serie(s) disponibili")
+                # Mostra i primi 3 risultati con i loro label
+                for i, r in enumerate(result[:3]):
+                    labels = {k: v for k, v in r['metric'].items() if k != '__name__'}
+                    print(f"  [{i}] Valore: {r['value'][1]}, Labels: {labels}")
+            else:
+                print(f"✗ {metric}: Non disponibile")
+        except Exception as e:
+            print(f"✗ {metric}: Errore - {e}")
 
-for query in test_queries:
-    result = query_prom(query)
-    print(f"{query}: {result}")
+def get_cpu_usage():
+    """Prova diverse query per ottenere l'utilizzo CPU"""
+    cpu_queries = [
+        # Query per container specifici
+        'sum(rate(container_cpu_usage_seconds_total{namespace="prime-service", container="prime-service"}[30s]))',
+        'sum(rate(container_cpu_usage_seconds_total{container="prime-service"}[30s]))',
+        'sum(rate(container_cpu_usage_seconds_total{pod=~"prime-service-.*"}[30s]))',
+        
+        # Query più generiche
+        'sum(rate(container_cpu_usage_seconds_total{namespace="prime-service"}[30s]))',
+        'sum(rate(container_cpu_usage_seconds_total{container!="POD", container!=""}[30s]))',
+        
+        # Query alternative
+        'sum(rate(process_cpu_seconds_total[30s]))',
+        'rate(container_cpu_usage_seconds_total[30s])'
+    ]
+    
+    return query_prom_multiple(cpu_queries)
+
+def get_memory_usage():
+    """Prova diverse query per ottenere l'utilizzo memoria"""
+    mem_queries = [
+        # Query per container specifici
+        'sum(container_memory_working_set_bytes{namespace="prime-service", container="prime-service"})',
+        'sum(container_memory_working_set_bytes{container="prime-service"})',
+        'sum(container_memory_working_set_bytes{pod=~"prime-service-.*"})',
+        
+        # Query più generiche
+        'sum(container_memory_working_set_bytes{namespace="prime-service"})',
+        'sum(container_memory_working_set_bytes{container!="POD", container!=""})',
+        
+        # Query alternative
+        'sum(container_memory_usage_bytes{namespace="prime-service", container="prime-service"})',
+        'sum(process_resident_memory_bytes)',
+        'container_memory_working_set_bytes'
+    ]
+    
+    return query_prom_multiple(mem_queries)
+
+def get_replica_count():
+    """Prova diverse query per ottenere il numero di repliche"""
+    replica_queries = [
+        'kube_deployment_status_replicas{deployment="prime-service", namespace="prime-service"}',
+        'kube_deployment_status_replicas{deployment="prime-service"}',
+        'kube_deployment_spec_replicas{deployment="prime-service"}',
+        'count(up{job="prime-service"})',
+        'count(prime_requests_total)'
+    ]
+    
+    result = query_prom_multiple(replica_queries)
+    return result if result > 0 else 1  # Fallback a 1
+
+# Esegui debug iniziale
+debug_available_metrics()
 
 # Inizializza CSV
 with open(CSV_FILE, 'w', newline='') as f:
@@ -89,33 +163,15 @@ while time.time() - t0 < DURATION:
     rps = len(response_times) / elapsed if elapsed else 0
     avg_lat = statistics.mean(response_times) if response_times else 0
 
-    # Query per CPU - prova diverse alternative
-    cpu_queries = [
-        'sum(rate(container_cpu_usage_seconds_total{namespace="prime-service", container="prime-service"}[30s]))',
-        'sum(rate(container_cpu_usage_seconds_total{pod=~"prime-service-.*"}[30s]))'
-    ]
-    cpu = query_prom_multiple(cpu_queries)
-
-    # Query per memoria - prova diverse alternative
-    mem_queries = [
-        'sum(container_memory_working_set_bytes{namespace="prime-service", container="prime-service"})',
-        'sum(container_memory_working_set_bytes{pod=~"prime-service-.*"})'
-    ]
-    mem = query_prom_multiple(mem_queries)
-
-    # Query per replica
-    replicas_queries = [
-        'kube_deployment_status_replicas{deployment="prime-service", namespace="prime-service"}'
-    ]
-    replicas = query_prom_multiple(replicas_queries)
-    if replicas == 0.0:
-        replicas = 1  # Fallback
-
+    # Usa le nuove funzioni per ottenere metriche
+    cpu = get_cpu_usage()
+    mem = get_memory_usage()
+    replicas = get_replica_count()
     energy = 0.0  # Non disponibile in cluster normali
 
     # Log dettagliato ogni 5 iterazioni
     if iteration % 5 == 0:
-        print(f"Iteration {iteration}: RPS={rps:.2f}, Latency={avg_lat:.4f}s, CPU={cpu:.3f}, Memory={mem}, Replicas={replicas}")
+        print(f"Iteration {iteration}: RPS={rps:.2f}, Latency={avg_lat:.4f}s, CPU={cpu:.3f}, Memory={mem:.0f}, Replicas={replicas}")
 
     with open(CSV_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
@@ -128,14 +184,9 @@ while time.time() - t0 < DURATION:
 print(f"Dataset salvato in {CSV_FILE}")
 
 # Mostra metriche finali disponibili
-print("\nMetriche finali disponibili:")
-final_queries = [
-    'prime_requests_total',
-    'prime_inprogress_requests',
-    'sum(prime_requests_total)',
-    'sum(rate(prime_requests_total[1m]))',
-]
-
-for query in final_queries:
-    result = query_prom(query)
-    print(f"{query}: {result}")
+print("\n=== METRICHE FINALI ===")
+print(f"CPU Usage: {get_cpu_usage():.3f} cores")
+print(f"Memory Usage: {get_memory_usage():.0f} bytes")
+print(f"Replica Count: {get_replica_count()}")
+print(f"Prime Requests Total: {query_prom('sum(prime_requests_total)')}")
+print(f"Prime Requests Rate: {query_prom('sum(rate(prime_requests_total[1m]))')}")
