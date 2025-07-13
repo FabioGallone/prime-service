@@ -34,8 +34,9 @@ def query_prom_multiple(queries):
 def get_cpu_usage_percentage():
     """CPU usage percentage"""
     cpu_queries = [
-        'sum(rate(container_cpu_usage_seconds_total{container="prime-service"}[30s]))',
+        'sum(rate(container_cpu_usage_seconds_total{container="factorial-service"}[30s]))',
         'sum(rate(container_cpu_usage_seconds_total{pod=~"prime-service-.*"}[30s]))',
+        'sum(rate(container_cpu_usage_seconds_total{namespace="prime-service"}[30s]))',
     ]
     cpu_cores = query_prom_multiple(cpu_queries)
     cpu_percentage = (cpu_cores / CPU_LIMIT_CORES) * 100
@@ -44,8 +45,9 @@ def get_cpu_usage_percentage():
 def get_memory_usage_percentage():
     """Memory usage percentage"""
     mem_queries = [
-        'avg(container_memory_working_set_bytes{container="prime-service"})',
+        'avg(container_memory_working_set_bytes{container="factorial-service"})',
         'avg(container_memory_working_set_bytes{pod=~"prime-service-.*"})',
+        'avg(container_memory_working_set_bytes{namespace="prime-service"})',
     ]
     mem_bytes = query_prom_multiple(mem_queries)
     mem_percentage = (mem_bytes / MEMORY_LIMIT_BYTES) * 100
@@ -267,7 +269,8 @@ def run_intensive_gradual_simulation():
                 
                 # Memoria per calcolo potenza
                 mem_bytes = query_prom_multiple([
-                    'sum(container_memory_working_set_bytes{container="prime-service"})'
+                    'sum(container_memory_working_set_bytes{container="factorial-service"})',
+                    'sum(container_memory_working_set_bytes{namespace="prime-service"})'
                 ]) or (MEMORY_LIMIT_BYTES * mem_percent / 100)
                 
                 power_per_container = estimate_power_consumption(cpu_percent, mem_bytes, actual_rps)

@@ -14,8 +14,8 @@ spec:
         app: prime-service
     spec:
       containers:
-      - name: prime-service
-        image: prime-service:v1.0.0
+      - name: factorial-service
+        image: factorial-service:v1.0.0
         imagePullPolicy: Never  
         ports:
         - containerPort: 8000
@@ -28,7 +28,7 @@ spec:
             memory: "512Mi"  
         readinessProbe:
           httpGet:
-            path: /prime/2
+            path: /factorial/10
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
