@@ -117,7 +117,7 @@ kubectl apply -f prometheus/prometheus-service.yaml
 kubectl get pods -n prime-service
 
 # Controlla kube-state-metrics
-kubectl get pods -n kube-system | grep kube-state-metrics
+kubectl get pods -n kube-system
 
 # Verifica i logs di Prometheus
 kubectl logs -n prime-service deployment/prometheus-deployment
@@ -182,16 +182,7 @@ Prima di eseguire lo script, verifica che Prometheus stia raccogliendo le metric
 python scripts/simulate_and_collect.py
 ```
 
-**Script migliorato (con debug e query multiple):**
-```bash
-python scripts/simulate_and_collect_improved.py
-```
 
-Lo script migliorato:
-- Testa automaticamente quali metriche sono disponibili
-- Prova query multiple per CPU e memoria
-- Fornisce debug dettagliato
-- Gestisce meglio i fallback delle query
 
 ### 4. **Output aspettato**
 
@@ -207,56 +198,6 @@ Iteration 0: RPS=156.45, Latency=0.0581s, CPU=0.120, Memory=134217728, Replicas=
 
 ---
 
-## 🐛 Troubleshooting
-
-### **Problema: Metriche CPU/memoria sempre a 0**
-
-**Cause comuni:**
-1. **kube-state-metrics non installato** → `kubectl apply -f kube-state-metrics.yaml`
-2. **Prometheus senza autorizzazioni RBAC** → Verifica che sia applicato il deployment aggiornato
-3. **cAdvisor non accessibile** → Controlla i logs di Prometheus
-
-**Debug:**
-```bash
-# Verifica target Prometheus
-curl http://localhost:9090/api/v1/targets
-
-# Verifica metriche disponibili
-curl http://localhost:9090/api/v1/label/__name__/values
-
-# Test query diretta
-curl "http://localhost:9090/api/v1/query?query=up"
-```
-
-### **Problema: HPA non funziona**
-
-```bash
-# Abilita metrics-server in Minikube
-minikube addons enable metrics-server
-
-# Verifica HPA status
-kubectl get hpa -n prime-service
-kubectl describe hpa prime-service-hpa -n prime-service
-```
-
-### **Problema: Pod in stato ImagePullBackOff**
-
-```bash
-# Ricostruisci l'immagine nel registry Minikube
-eval $(minikube docker-env)
-docker build -t prime-service:v1.0.0 .
-
-# Riavvia il deployment
-kubectl rollout restart deployment/prime-service -n prime-service
-```
-
-### **Problema: Script di simulazione fallisce**
-
-1. Verifica che i port-forward siano attivi
-2. Testa manualmente l'API: `curl http://localhost:8080/prime/17`
-3. Usa lo script `simulate_and_collect_improved.py` per debug dettagliato
-
----
 
 ## 📊 Metriche disponibili
 
