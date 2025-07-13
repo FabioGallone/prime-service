@@ -1,6 +1,6 @@
 # Prime Service
 
-**Prime Service** è un microservizio scritto in Python (FastAPI) che espone un’API per il calcolo di numeri primi e metriche Prometheus per il monitoraggio. Include inoltre uno script di simulazione per generare carico e raccogliere metriche.
+**Prime Service** è un microservizio scritto in Python (FastAPI) che espone un'API per il calcolo di numeri primi e metriche Prometheus per il monitoraggio. Include inoltre uno script di simulazione per generare carico e raccogliere metriche complete di CPU, memoria e replica count.
 
 ---
 
@@ -12,19 +12,21 @@ prime-service/
 ├── Dockerfile
 ├── README.md
 ├── requirements.txt
+├── kube-state-metrics.yaml          # Nuovo: per metriche Kubernetes
 ├── src/
 │   └── prime_service.py
 ├── scripts/
 │   ├── prime_dataset.csv
-│   └── simulate_and_collect.py
+│   ├── simulate_and_collect.py
+│   └── simulate_and_collect_improved.py  # Nuovo: versione migliorata
 ├── k8s/
 │   ├── namespace.yaml
 │   ├── deployment.yaml
 │   ├── service.yaml
 │   └── hpa.yaml
 └── prometheus/
-    ├── prometheus-configmap.yaml
-    ├── prometheus-deployment.yaml
+    ├── prometheus-configmap.yaml    # Aggiornato: configurazione completa
+    ├── prometheus-deployment.yaml   # Aggiornato: con RBAC
     └── prometheus-service.yaml
 ```
 
@@ -34,7 +36,7 @@ prime-service/
 
 * **kubectl**
 * **Minikube** (o altro cluster Kubernetes)
-* **Python 3.8+** (solo per lo script di simulazione)
+* **Python 3.8+** (solo per lo script di simulazione)
 
 ### 🔧 Installazione di Minikube
 
@@ -61,81 +63,235 @@ minikube start
 
 ## ☘️ Deploy su Kubernetes con Minikube
 
-1. **Clona il repository**
+### 1. **Setup iniziale**
 
 ```bash
 git clone https://github.com/FabioGallone/prime-service.git
 cd prime-service
+
+# Configura Docker per usare il registry di Minikube
+eval $(minikube docker-env)  # Linux/Mac
+# oppure
+minikube docker-env | Invoke-Expression  # Windows PowerShell
+
+# Costruisci l'immagine Docker
+docker build -t prime-service:v1.0.0 .
 ```
 
-2. **Crea il namespace**
+### 2. **Deploy del namespace e servizi base**
 
 ```bash
+# Crea il namespace
 kubectl apply -f k8s/namespace.yaml
-```
 
-3. **Deploy del servizio**
-
-```bash
+# Deploy del servizio principale
 kubectl apply -n prime-service -f k8s/deployment.yaml
 kubectl apply -n prime-service -f k8s/service.yaml
-```
 
-4. **Configura l'Horizontal Pod Autoscaler (HPA)**
-
-```bash
+# Configura l'Horizontal Pod Autoscaler (HPA)
 kubectl apply -n prime-service -f k8s/hpa.yaml
 ```
 
-5. **Installa Prometheus nel cluster (opzionale)**
+### 3. **Installa kube-state-metrics (IMPORTANTE per le metriche)**
 
 ```bash
-kubectl apply -n prime-service -f prometheus/prometheus-configmap.yaml
-kubectl apply -n prime-service -f prometheus/prometheus-deployment.yaml
-kubectl apply -n prime-service -f prometheus/prometheus-service.yaml
+# Installa kube-state-metrics per ottenere metriche sui deployment
+kubectl apply -f kube-state-metrics.yaml
 ```
 
-6. **Esporre le porte con `port-forward`**
-
-In tre terminali distinti:
+### 4. **Deploy di Prometheus con configurazione completa**
 
 ```bash
-# Per accedere all'API FastAPI (porta 8080 -> servizio)
+# Applica la configurazione Prometheus aggiornata
+kubectl apply -f prometheus/prometheus-configmap.yaml
+
+# Deploy Prometheus con RBAC (autorizzazioni necessarie)
+kubectl apply -f prometheus/prometheus-deployment.yaml
+kubectl apply -f prometheus/prometheus-service.yaml
+```
+
+### 5. **Verifica che tutto sia in esecuzione**
+
+```bash
+# Controlla i pod nel namespace prime-service
+kubectl get pods -n prime-service
+
+# Controlla kube-state-metrics
+kubectl get pods -n kube-system | grep kube-state-metrics
+
+# Verifica i logs di Prometheus
+kubectl logs -n prime-service deployment/prometheus-deployment
+```
+
+### 6. **Esporre le porte con port-forward**
+
+Apri **tre terminali distinti** ed esegui:
+
+**Terminale 1 - API FastAPI:**
+```bash
 kubectl port-forward -n prime-service service/prime-service 8080:80
 ```
 
+**Terminale 2 - Prometheus UI:**
 ```bash
-# Per accedere a Prometheus (porta 9090 -> Prometheus)
 kubectl port-forward -n prime-service service/prometheus 9090:9090
 ```
 
+**Terminale 3 - Metriche endpoint:**
 ```bash
-# Per simulare carico con metrica push (porta 8001 -> FastAPI)
 kubectl port-forward -n prime-service service/prime-service 8001:8001
 ```
 
-* API disponibile su: `http://localhost:8080`
-* Prometheus disponibile su: `http://localhost:9090`
-* Endpoint di metrica custom push: `http://localhost:8001/metrics` (per lo script)
+### 7. **Verifica degli endpoint**
+
+* **API disponibile su:** `http://localhost:8080`
+  - Test: `http://localhost:8080/prime/17`
+* **Prometheus UI:** `http://localhost:9090`
+  - Verifica nella sezione "Targets" che i servizi siano raggiungibili
+* **Metriche endpoint:** `http://localhost:8001/metrics`
 
 ---
 
 ## 🔄 Simulazione di carico e raccolta metriche
 
-1. **Installa le dipendenze Python**:
+### 1. **Installa le dipendenze Python:**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-2. **Esegui lo script di simulazione**
+### 2. **Verifica configurazione Prometheus**
 
+Prima di eseguire lo script, verifica che Prometheus stia raccogliendo le metriche:
+
+1. Vai su `http://localhost:9090`
+2. Nella sezione **Targets**, verifica che siano presenti e **UP**:
+   - `prime-service` (per le metriche custom)
+   - `kubernetes-cadvisor` (per CPU/memoria)
+   - `kube-state-metrics` (per replica count)
+3. Prova queste query nel **Query Browser**:
+   - `up` (tutti i target attivi)
+   - `prime_requests_total` (metriche del servizio)
+   - `container_memory_working_set_bytes` (memoria container)
+   - `kube_deployment_status_replicas` (numero repliche)
+
+### 3. **Esegui lo script di simulazione**
+
+**Script base (originale):**
 ```bash
 python scripts/simulate_and_collect.py
 ```
 
-* Lo script usa il dataset `scripts/prime_dataset.csv` per invocare ripetutamente l’API.
-* Le metriche raccolte verranno inviate a Prometheus (configurato in `simulate_and_collect.py`).
+**Script migliorato (con debug e query multiple):**
+```bash
+python scripts/simulate_and_collect_improved.py
+```
+
+Lo script migliorato:
+- Testa automaticamente quali metriche sono disponibili
+- Prova query multiple per CPU e memoria
+- Fornisce debug dettagliato
+- Gestisce meglio i fallback delle query
+
+### 4. **Output aspettato**
+
+Lo script dovrebbe mostrare output simile a:
+```
+=== DEBUG: Metriche disponibili ===
+✓ prime_requests_total: 1 serie(s) disponibili
+✓ container_memory_working_set_bytes: 12 serie(s) disponibili
+Query funzionante: sum(container_memory_working_set_bytes{namespace="prime-service"})
+
+Iteration 0: RPS=156.45, Latency=0.0581s, CPU=0.120, Memory=134217728, Replicas=1
+```
 
 ---
 
+## 🐛 Troubleshooting
+
+### **Problema: Metriche CPU/memoria sempre a 0**
+
+**Cause comuni:**
+1. **kube-state-metrics non installato** → `kubectl apply -f kube-state-metrics.yaml`
+2. **Prometheus senza autorizzazioni RBAC** → Verifica che sia applicato il deployment aggiornato
+3. **cAdvisor non accessibile** → Controlla i logs di Prometheus
+
+**Debug:**
+```bash
+# Verifica target Prometheus
+curl http://localhost:9090/api/v1/targets
+
+# Verifica metriche disponibili
+curl http://localhost:9090/api/v1/label/__name__/values
+
+# Test query diretta
+curl "http://localhost:9090/api/v1/query?query=up"
+```
+
+### **Problema: HPA non funziona**
+
+```bash
+# Abilita metrics-server in Minikube
+minikube addons enable metrics-server
+
+# Verifica HPA status
+kubectl get hpa -n prime-service
+kubectl describe hpa prime-service-hpa -n prime-service
+```
+
+### **Problema: Pod in stato ImagePullBackOff**
+
+```bash
+# Ricostruisci l'immagine nel registry Minikube
+eval $(minikube docker-env)
+docker build -t prime-service:v1.0.0 .
+
+# Riavvia il deployment
+kubectl rollout restart deployment/prime-service -n prime-service
+```
+
+### **Problema: Script di simulazione fallisce**
+
+1. Verifica che i port-forward siano attivi
+2. Testa manualmente l'API: `curl http://localhost:8080/prime/17`
+3. Usa lo script `simulate_and_collect_improved.py` per debug dettagliato
+
+---
+
+## 📊 Metriche disponibili
+
+### **Metriche custom del servizio:**
+- `prime_requests_total` - Totale richieste ricevute
+- `prime_inprogress_requests` - Richieste in corso
+- `prime_request_latency_seconds` - Istogramma latenze
+
+### **Metriche sistema (tramite cAdvisor):**
+- `container_cpu_usage_seconds_total` - Utilizzo CPU
+- `container_memory_working_set_bytes` - Memoria utilizzata
+
+### **Metriche Kubernetes (tramite kube-state-metrics):**
+- `kube_deployment_status_replicas` - Numero repliche
+- `kube_pod_info` - Informazioni sui pod
+
+---
+
+## 🔧 Configurazione avanzata
+
+### **Modifica intervallo di scraping Prometheus:**
+Edita `prometheus/prometheus-configmap.yaml` e cambia `scrape_interval`
+
+### **Modifica soglia HPA:**
+Edita `k8s/hpa.yaml` e cambia `averageUtilization`
+
+### **Modifica risorse container:**
+Edita `k8s/deployment.yaml` nella sezione `resources`
+
+---
+
+## 📝 Note
+
+- Il dataset viene salvato in `scripts/prime_dataset.csv`
+- Le metriche sono raccolte ogni 5 secondi per default
+- L'HPA è configurato per scalare tra 1-10 repliche al 50% CPU
+- kube-state-metrics è installato nel namespace `kube-system`
+- Prometheus ha accesso cluster-wide tramite RBAC per raccogliere tutte le metriche
