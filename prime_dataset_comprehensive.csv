@@ -1,0 +1,7 @@
+timestamp,scenario,simulated_hour,load_intensity,req_per_sec,response_time_avg_s,cpu_usage_percent,memory_usage_percent,replica_count,power_per_container_watts,total_power_watts,queue_length,error_rate_percent
+1752412951.3978276,business_hours,00:00,0.091,4.5,0.0167,0.0,0.0,1,1.4,1.4,0,0.0
+1752412962.6416862,business_hours,01:00,0.059,2.9,0.0166,0.0,0.0,1,1.4,1.4,0,0.0
+1752412971.8726864,business_hours,02:00,0.144,7.2,0.016,0.0,0.0,1,1.4,1.4,0,0.0
+1752412981.1101832,business_hours,04:00,0.081,4.0,0.0162,0.0,0.0,1,1.4,1.4,0,0.0
+1752412990.3651857,business_hours,05:00,0.077,3.8,0.0167,0.0,0.0,1,1.4,1.4,0,0.0
+1752412998.8935366,business_hours,06:00,0.056,2.8,0.016,0.0,0.0,1,1.4,1.4,0,0.0
