@@ -92,9 +92,10 @@ def worker(queue, response_times):
             n = queue.pop()
             start = time.time()
             try:
-                r = requests.get(FACTORIAL_API.format(n), timeout=15)
+                r = requests.get(FACTORIAL_API.format(n), timeout=120)  # 2 minuti!
                 r.raise_for_status()
-            except:
+            except Exception as e:
+                print(f"    ❌ Request failed for n={n}: {e}")
                 continue
             elapsed = time.time() - start
             with lock:
@@ -168,22 +169,22 @@ def generate_intensive_load(intensity_level):
         difficulty_roll = random.random()
         
         if intensity_level <= 10:
-            # Livelli bassi: fattoriali piccoli-medi
+            # Livelli bassi: fattoriali piccoli ma CPU intensive
             if difficulty_roll < 0.5:
-                queue.append(random.randint(500, 3000))      # factorial(3000) → ~0.5s
+                queue.append(random.randint(1000, 3000))      # factorial(3000) → gestibile
             elif difficulty_roll < 0.7:
-                queue.append(random.randint(3000, 8000))     # factorial(8000) → ~2s
+                queue.append(random.randint(3000, 5000))      # factorial(5000) → ~2-5s
             else:
-                queue.append(random.randint(8000, 15000))    # factorial(15000) → ~8s
+                queue.append(random.randint(5000, 8000))      # factorial(8000) → ~5-15s
         
         elif intensity_level <= 25:
-            # Livelli alti: fattoriali intensi per stress CPU
+            # Livelli alti: fattoriali più intensi ma sicuri
             if difficulty_roll < 0.2:
-                queue.append(random.randint(8000, 15000))    # Slow
+                queue.append(random.randint(5000, 8000))      # Safe range
             elif difficulty_roll < 0.5:
-                queue.append(random.randint(15000, 25000))   # Very slow  
+                queue.append(random.randint(8000, 12000))     # Medium stress
             else:
-                queue.append(random.randint(25000, 50000))   # ULTRA slow! 🔥
+                queue.append(random.randint(12000, 15000))    # High stress ma sicuro
     
     print(f"    🔥 Generated load: concurrency={concurrency}, queue_size={queue_size}")
     return concurrency, queue

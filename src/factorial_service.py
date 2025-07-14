@@ -2,6 +2,10 @@ from fastapi import FastAPI, HTTPException
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 import time
 import threading
+import sys
+
+# Aumenta il limite per conversione string di numeri grandi
+sys.set_int_max_str_digits(100000)  # Permette numeri fino a 100k cifre
 
 app = FastAPI()
 
@@ -48,15 +52,26 @@ def compute_factorial(n: int):
         result = calculate_factorial(n)
         elapsed = time.time() - start
         
-        # Per numeri grandi, restituiamo solo info sulla dimensione
-        if result > 10**100:  # Numeri molto grandi
-            result_str = str(result)
+        # Versione SEMPLIFICATA - solo operazioni essenziali
+        if n > 100:
+            # Solo conteggio cifre (operazione più leggera)
+            digit_count = 0
+            temp_result = result
+            while temp_result > 0:
+                digit_count += 1
+                temp_result //= 10
+            
+            # Proprietà semplici senza loop pesanti
+            is_even = (result % 2 == 0)
+            last_digit = result % 10
+            
             return {
                 "number": n, 
-                "factorial_digits": len(result_str),
-                "first_20_digits": result_str[:20],
-                "last_20_digits": result_str[-20:],
-                "computation_time": elapsed
+                "factorial_digits": digit_count,
+                "is_even": is_even,
+                "last_digit": last_digit,
+                "computation_time": elapsed,
+                "note": "Factorial computed - lightweight analysis"
             }
         else:
             return {
