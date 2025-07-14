@@ -5,7 +5,7 @@ import threading
 import sys
 
 # Aumenta il limite per conversione string di numeri grandi
-sys.set_int_max_str_digits(100000)  # Permette numeri fino a 100k cifre
+sys.set_int_max_str_digits(0)  # Permette numeri fino a 100k cifre
 
 app = FastAPI()
 
