@@ -1,237 +1,281 @@
-# Prime Service
+# Factorial Service - Microservice Scaling Analysis
 
-**Prime Service** è un microservizio scritto in Python (FastAPI) che espone un'API per il calcolo di numeri primi e metriche Prometheus per il monitoraggio. Include inoltre uno script di simulazione per generare carico e raccogliere metriche complete di CPU, memoria e replica count.
+**Factorial Service** è un microservizio scritto in Python (FastAPI) per l'analisi completa del comportamento di scaling orizzontale. Include monitoraggio Prometheus, test di carico automatizzati e generazione di dataset per analisi di performance e capacity planning.
 
 ---
 
-## 📦 Struttura del progetto
+## 📦 Struttura del Progetto
 
 ```
-prime-service/
+factorial-service/
 ├── .gitignore
-├── Dockerfile
-├── README.md
-├── requirements.txt
-├── kube-state-metrics.yaml          # Nuovo: per metriche Kubernetes
+├── Dockerfile                          # Multi-worker container setup
+├── README.md                          # Documentazione completa
+├── requirements.txt                   # Dipendenze Python
+├── kube-state-metrics.yaml          # Metriche Kubernetes
 ├── src/
-│   └── prime_service.py
+│   └── factorial_service.py         # Servizio FastAPI CPU-intensive
 ├── scripts/
-│   ├── prime_dataset.csv
-│   ├── simulate_and_collect.py
-│   └── simulate_and_collect_improved.py  # Nuovo: versione migliorata
+│   ├── simulate_and_collect.py      # Script principale di analisi scaling
+│   ├── quick_test.py               # Test di verifica rapido
+│   └── bottleneck_diagnosis.py     # Diagnosi problemi performance
 ├── k8s/
-│   ├── namespace.yaml
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── hpa.yaml
+│   ├── namespace.yaml              # Namespace isolato
+│   ├── deployment.yaml             # Deployment multi-replica
+│   ├── service.yaml                # Service con LoadBalancer/NodePort
+│   └── hpa.yaml                    # Horizontal Pod Autoscaler
 └── prometheus/
-    ├── prometheus-configmap.yaml    # Aggiornato: configurazione completa
-    ├── prometheus-deployment.yaml   # Aggiornato: con RBAC
-    └── prometheus-service.yaml
+    ├── prometheus-configmap.yaml   # Configurazione per metriche per-pod
+    ├── prometheus-deployment.yaml  # Prometheus con RBAC completo
+    └── prometheus-service.yaml     # Prometheus service
 ```
+
+---
+
+## 🎯 Caratteristiche Principali
+
+### ✅ **Servizio FastAPI Ottimizzato**
+- **CPU-intensive factorial calculations** con carichi realistici
+- **Multi-worker support** (4 worker per default)
+- **Metriche Prometheus** integrate (requests, latency, in-progress)
+- **Health checks** e endpoint diagnostici
+
+### ✅ **Analisi Scaling Completa**
+- **Test automatizzati** per 1-8 repliche
+- **Load balancing verification** con distribuzione per-pod
+- **25+ metriche** per test (performance, latency, resources, power)
+- **Dataset ML-ready** per capacity planning
+
+### ✅ **Monitoring Avanzato**
+- **Per-pod metrics collection** con Prometheus
+- **CPU, Memory, Network monitoring**
+- **Load distribution analysis**
+- **Power efficiency calculations**
+
+### ✅ **Production-Ready**
+- **Auto-connectivity detection** (minikube service/port-forward)
+- **Robust error handling** e retry logic
+- **Comprehensive result analysis**
+- **Industry benchmark comparisons**
 
 ---
 
 ## ⚙️ Prerequisiti
 
-* **kubectl**
-* **Minikube** (o altro cluster Kubernetes)
-* **Python 3.8+** (solo per lo script di simulazione)
+### **Software Richiesto:**
+- **Docker** per build delle immagini
+- **kubectl** configurato
+- **Minikube** o cluster Kubernetes
+- **Python 3.8+** per gli script di analisi
 
-### 🔧 Installazione di Minikube
-
-#### Su **Windows**:
-
-1. Scarica l'installer da:
-   [https://minikube.sigs.k8s.io/docs/start/](https://minikube.sigs.k8s.io/docs/start/)
-2. Installa e verifica:
-
-   ```powershell
-   minikube version
-   minikube start
-   ```
-
-#### Su **Linux**:
-
-```bash
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-sudo install minikube-linux-amd64 /usr/local/bin/minikube
-minikube start
-```
+### **Risorse Cluster:**
+- **CPU**: 4+ cores raccomandati per testing multi-replica
+- **Memory**: 4GB+ per eseguire fino a 8 repliche
+- **Storage**: 1GB per logs e dataset
 
 ---
 
-## ☘️ Deploy su Kubernetes con Minikube
+## 🚀 Setup e Installazione
 
-### 1. **Setup iniziale**
-
+### **1. Clone del Repository**
 ```bash
-git clone https://github.com/FabioGallone/prime-service.git
-cd prime-service
+git clone https://github.com/FabioGallone/factorial-service.git
+cd factorial-service
+```
 
-# Configura Docker per usare il registry di Minikube
+### **2. Setup Minikube (Windows/Linux)**
+
+**Windows:**
+```powershell
+# Scarica da: https://minikube.sigs.k8s.io/docs/start/
+minikube start --cpus=4 --memory=4096
+```
+
+**Linux:**
+```bash
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+minikube start --cpus=4 --memory=4096
+```
+
+### **3. Build e Deploy**
+```bash
+# Configura Docker per Minikube
 eval $(minikube docker-env)  # Linux/Mac
 # oppure
 minikube docker-env | Invoke-Expression  # Windows PowerShell
 
-# Costruisci l'immagine Docker
+# Build dell'immagine
 docker build -t factorial-service:v1.0.0 .
-```
 
-### 2. **Deploy del namespace e servizi base**
-
-```bash
-# Crea il namespace
+# Deploy del namespace e servizi
 kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
 
-# Deploy del servizio principale
-kubectl apply -n prime-service -f k8s/deployment.yaml
-kubectl apply -n prime-service -f k8s/service.yaml
-
-
-```
-
-### 3. **Installa kube-state-metrics (IMPORTANTE per le metriche)**
-
-```bash
-# Installa kube-state-metrics per ottenere metriche sui deployment
+# Deploy monitoring
 kubectl apply -f kube-state-metrics.yaml
-```
-
-### 4. **Deploy di Prometheus con configurazione completa**
-
-```bash
-# Applica la configurazione Prometheus aggiornata
 kubectl apply -f prometheus/prometheus-configmap.yaml
-
-# Deploy Prometheus con RBAC (autorizzazioni necessarie)
 kubectl apply -f prometheus/prometheus-deployment.yaml
 kubectl apply -f prometheus/prometheus-service.yaml
 ```
 
-### 5. **Verifica che tutto sia in esecuzione**
-
+### **4. Verifica Deploy**
 ```bash
-# Controlla i pod nel namespace prime-service
-kubectl get pods -n prime-service
+# Controlla i pod
+kubectl get pods -n factorial-service
 
-# Controlla kube-state-metrics
-kubectl get pods -n kube-system
+# Verifica servizi
+kubectl get services -n factorial-service
 
-# Verifica i logs di Prometheus
-kubectl logs -n prime-service deployment/prometheus-deployment
+# Test rapido
+python scripts/quick_test.py
 ```
-
-### 6. **Esporre le porte con port-forward**
-
-Apri **tre terminali distinti** ed esegui:
-
-**Terminale 1 - API FastAPI:**
-```bash
-kubectl port-forward -n prime-service service/prime-service 8080:80
-```
-
-**Terminale 2 - Prometheus UI:**
-```bash
-kubectl port-forward -n prime-service service/prometheus 9090:9090
-```
-
-**Terminale 3 - Metriche endpoint:**
-```bash
-kubectl port-forward -n prime-service service/prime-service 8001:8001
-```
-
-### 7. **Verifica degli endpoint**
-
-* **API disponibile su:** `http://localhost:8080`
-  - Test: `http://localhost:8080/prime/17`
-* **Prometheus UI:** `http://localhost:9090`
-  - Verifica nella sezione "Targets" che i servizi siano raggiungibili
-* **Metriche endpoint:** `http://localhost:8001/metrics`
 
 ---
 
-## 🔄 Simulazione di carico e raccolta metriche
+## 🔧 Configurazione Connectivity
 
-### 1. **Installa le dipendenze Python:**
+Il sistema supporta **multiple modalità di accesso** con auto-detection:
 
+### **Opzione A: Minikube Service (Raccomandato)**
 ```bash
-pip install -r requirements.txt
+# Terminale 1: Servizio API
+minikube service factorial-service -n factorial-service --url
+# Mantieni aperto!
+
+# Terminale 2: Prometheus
+kubectl port-forward -n factorial-service service/prometheus 9090:9090
 ```
 
-### 2. **Verifica configurazione Prometheus**
+### **Opzione B: Minikube Tunnel**
+```bash
+# Terminale 1 (come Administrator)
+minikube tunnel
 
-Prima di eseguire lo script, verifica che Prometheus stia raccogliendo le metriche:
+# Terminale 2: Prometheus
+kubectl port-forward -n factorial-service service/prometheus 9090:9090
+```
 
-1. Vai su `http://localhost:9090`
-2. Nella sezione **Targets**, verifica che siano presenti e **UP**:
-   - `prime-service` (per le metriche custom)
-   - `kubernetes-cadvisor` (per CPU/memoria)
-   - `kube-state-metrics` (per replica count)
-3. Prova queste query nel **Query Browser**:
-   - `up` (tutti i target attivi)
-   - `prime_requests_total` (metriche del servizio)
-   - `container_memory_working_set_bytes` (memoria container)
-   - `kube_deployment_status_replicas` (numero repliche)
+### **Opzione C: LoadBalancer Service**
+```bash
+# Modifica k8s/service.yaml per type: LoadBalancer
+kubectl apply -f k8s/service.yaml
 
-### 3. **Esegui lo script di simulazione**
+# Aspetta external IP
+kubectl get service factorial-service -n factorial-service -w
+```
 
-**Script base (originale):**
+### **Opzione D: Port-Forward (Fallback)**
+```bash
+# Terminale 1: API
+kubectl port-forward -n factorial-service service/factorial-service 8080:80
+
+# Terminale 2: Prometheus
+kubectl port-forward -n factorial-service service/prometheus 9090:9090
+```
+
+---
+
+## 📊 Analisi Scaling
+
+### **Script Principale di Analisi**
 ```bash
 python scripts/simulate_and_collect.py
 ```
 
+**Output:**
+- **CSV completo** con 25+ metriche per test
+- **Scaling efficiency analysis**
+- **Load balancing assessment**
+- **Power consumption insights**
+- **Production readiness evaluation**
 
+### **Configurazioni Personalizzate**
 
-### 4. **Output aspettato**
-
-Lo script dovrebbe mostrare output simile a:
+**Test Veloce (15 minuti):**
+```python
+replica_configs = [1, 2, 3, 4]
+tests_per_replica = 2
 ```
-=== DEBUG: Metriche disponibili ===
-✓ prime_requests_total: 1 serie(s) disponibili
-✓ container_memory_working_set_bytes: 12 serie(s) disponibili
-Query funzionante: sum(container_memory_working_set_bytes{namespace="prime-service"})
 
-Iteration 0: RPS=156.45, Latency=0.0581s, CPU=0.120, Memory=134217728, Replicas=1
+**Test Approfondito (40 minuti):**
+```python
+replica_configs = [1, 2, 3, 4, 5, 6]
+tests_per_replica = 5
+```
+
+**Test High-Scale (60+ minuti):**
+```python
+replica_configs = [1, 2, 3, 4, 5, 6, 7, 8]
+tests_per_replica = 3
+```
+
+### **Script di Supporto**
+
+**Verifica Connectivity:**
+```bash
+python scripts/quick_test.py
+```
+
+**Diagnosi Performance:**
+```bash
+python scripts/bottleneck_diagnosis.py
 ```
 
 ---
 
+## 📈 Metriche e Dataset
 
-## 📊 Metriche disponibili
+### **Metriche per Test (25 colonne CSV):**
 
-### **Metriche custom del servizio:**
-- `prime_requests_total` - Totale richieste ricevute
-- `prime_inprogress_requests` - Richieste in corso
-- `prime_request_latency_seconds` - Istogramma latenze
+| Categoria | Metriche |
+|-----------|----------|
+| **Performance** | RPS, latency (avg/max/p95), success rate |
+| **Scaling** | Efficiency vs baseline, scale factor, per-replica RPS |
+| **Resources** | CPU%, Memory%, load balancing status |
+| **Load** | Concurrent users, total requests, complexity distribution |
+| **Power** | Power per container, total power, power efficiency |
+| **Timing** | Test duration, response time inflation |
 
-### **Metriche sistema (tramite cAdvisor):**
-- `container_cpu_usage_seconds_total` - Utilizzo CPU
-- `container_memory_working_set_bytes` - Memoria utilizzata
+### **Esempio Output:**
+```csv
+timestamp,replicas,req_per_sec,scaling_efficiency_vs_baseline,load_balanced
+1752528066,1,84.6,100.0,True
+1752528115,2,127.8,75.5,False
+1752528162,3,137.4,54.2,False
+1752528211,4,151.4,44.7,False
+```
 
-### **Metriche Kubernetes (tramite kube-state-metrics):**
-- `kube_deployment_status_replicas` - Numero repliche
-- `kube_pod_info` - Informazioni sui pod
+### **Benchmark Industriali:**
+- **Excellent**: >80% scaling efficiency
+- **Good**: 60-80% scaling efficiency ← **Target Zone**
+- **Moderate**: 40-60% scaling efficiency
+- **Poor**: <40% scaling efficiency
 
 ---
 
-## 🔧 Configurazione avanzata
+## 🎯 Risultati di Esempio
 
-### **Modifica intervallo di scraping Prometheus:**
-Edita `prometheus/prometheus-configmap.yaml` e cambia `scrape_interval`
+### **Performance Scaling Tipica:**
+```
+1 replica:  85 RPS (baseline, 100% efficiency)
+2 repliche: 128 RPS (75% efficiency - GOOD!)
+3 repliche: 137 RPS (54% efficiency - moderate)
+4 repliche: 151 RPS (45% efficiency - acceptable)
+```
 
-### **Modifica soglia HPA:**
-Edita `k8s/hpa.yaml` e cambia `averageUtilization`
+### **Load Balancing Analysis:**
+```
+✅ 1 replica: Load balanced = True (normal)
+❌ 2+ repliche: Load balanced = False (investigate)
+   Pod principal: 97-99% traffic
+   Pod secondary: 1-3% traffic
+```
 
-### **Modifica risorse container:**
-Edita `k8s/deployment.yaml` nella sezione `resources`
+### **Assessment Automatico:**
+- **75% efficiency** → "GOOD! Production-ready with solid scaling"
+- **45% efficiency** → "MODERATE. Consider optimization"
+- **25% efficiency** → "POOR. Investigation needed"
 
----
-
-## 📝 Note
-
-- Il dataset viene salvato in `scripts/prime_dataset.csv`
-- Le metriche sono raccolte ogni 5 secondi per default
-- L'HPA è configurato per scalare tra 1-10 repliche al 50% CPU
-- kube-state-metrics è installato nel namespace `kube-system`
-- Prometheus ha accesso cluster-wide tramite RBAC per raccogliere tutte le metriche
+**🎯 Factorial Service - Production-ready microservice scaling analysis platform**

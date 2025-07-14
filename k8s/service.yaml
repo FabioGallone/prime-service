@@ -6,6 +6,8 @@ metadata:
 spec:
   selector:
     app: prime-service
+  type: LoadBalancer
+  sessionAffinity: None
   ports:
   - name: http
     protocol: TCP
@@ -15,4 +17,3 @@ spec:
     protocol: TCP
     port: 8001
     targetPort: 8001
-  type: ClusterIP

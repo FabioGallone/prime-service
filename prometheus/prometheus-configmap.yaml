@@ -10,8 +10,36 @@ data:
       evaluation_interval: 15s
 
     scrape_configs:
-      # Scrape del tuo servizio prime-service
-      - job_name: 'prime-service'
+      # FIXED: Scrape per-pod invece di service aggregato
+      - job_name: 'prime-service-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - prime-service
+        relabel_configs:
+          # Solo pod con label app=prime-service
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: prime-service
+          # Usa pod IP:8001 per metrics
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: __address__
+            replacement: ${1}:8001
+          # Aggiungi pod name come label
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod_name
+          # Aggiungi pod IP come label
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: pod_ip
+        scrape_interval: 5s
+        metrics_path: /metrics
+      
+      # Mantieni anche lo scrape del service per compatibilità
+      - job_name: 'prime-service-aggregated'
         static_configs:
           - targets: ['prime-service:8001']
         scrape_interval: 5s
