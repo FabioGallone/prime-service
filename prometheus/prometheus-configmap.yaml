@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-config
-  namespace: prime-service
+  namespace: factorial-service
 data:
   prometheus.yml: |
     global:
@@ -11,17 +11,17 @@ data:
 
     scrape_configs:
       # FIXED: Scrape per-pod invece di service aggregato
-      - job_name: 'prime-service-pods'
+      - job_name: 'factorial-service-pods'
         kubernetes_sd_configs:
           - role: pod
             namespaces:
               names:
-                - prime-service
+                - factorial-service
         relabel_configs:
-          # Solo pod con label app=prime-service
+          # Solo pod con label app=factorial-service
           - source_labels: [__meta_kubernetes_pod_label_app]
             action: keep
-            regex: prime-service
+            regex: factorial-service
           # Usa pod IP:8001 per metrics
           - source_labels: [__meta_kubernetes_pod_ip]
             action: replace
@@ -39,9 +39,9 @@ data:
         metrics_path: /metrics
       
       # Mantieni anche lo scrape del service per compatibilità
-      - job_name: 'prime-service-aggregated'
+      - job_name: 'factorial-service-aggregated'
         static_configs:
-          - targets: ['prime-service:8001']
+          - targets: ['factorial-service:8001']
         scrape_interval: 5s
         metrics_path: /metrics
         

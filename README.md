@@ -127,9 +127,6 @@ kubectl get pods -n factorial-service
 
 # Verifica servizi
 kubectl get services -n factorial-service
-
-# Test rapido
-python scripts/quick_test.py
 ```
 
 ---

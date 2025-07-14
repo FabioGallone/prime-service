@@ -70,7 +70,8 @@ def setup_api_connectivity():
     
     # Method 2: Fallback to port-forward
     print("   Trying port-forward method...")
-    FACTORIAL_API = "http://127.0.0.1/factorial/{}"  # Sostituisci <EXTERNAL-IP>    
+    FACTORIAL_API = "http://localhost:8080/factorial/{}"
+    
     try:
         test_response = requests.get(FACTORIAL_API.format(50), timeout=5)
         if test_response.status_code == 200:
@@ -141,11 +142,11 @@ def get_enhanced_cpu_usage(replicas):
             
             if result and len(result) > 0:
                 if 'by (pod_name)' in query:
-                    # Per-pod query: calculate average for prime-service pods only
+                    # Per-pod query: calculate average for factorial-service pods only
                     cpu_values = []
                     for r in result:
                         pod_name = r.get('metric', {}).get('pod_name', '')
-                        if 'prime-service-' in pod_name:
+                        if 'factorial-service-' in pod_name:
                             cpu_cores = float(r['value'][1])
                             cpu_values.append(cpu_cores)
                     
@@ -202,8 +203,8 @@ def get_enhanced_memory_usage(replicas):
     """Enhanced memory monitoring with fallbacks"""
     
     memory_queries = [
-        'avg(container_memory_working_set_bytes{namespace="prime-service",container!="POD"})',
-        'avg(container_memory_working_set_bytes{namespace="prime-service"})',
+        'avg(container_memory_working_set_bytes{namespace="factorial-service",container!="POD"})',
+        'avg(container_memory_working_set_bytes{namespace="factorial-service"})',
     ]
     
     for query in memory_queries:
@@ -228,7 +229,7 @@ def check_load_distribution():
     try:
         # Try different metrics to check load distribution
         distribution_queries = [
-            'factorial_requests_total{job="prime-service-pods"}',
+            'factorial_requests_total{job="factorial-service-pods"}',
             'factorial_requests_total',
         ]
         
@@ -285,7 +286,7 @@ def get_replica_count_verified():
     """Get current replica count with validation"""
     for attempt in range(3):
         try:
-            cmd = "kubectl get deployment prime-service -n prime-service -o json"
+            cmd = "kubectl get deployment factorial-service -n factorial-service -o json"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
             
             if result.returncode == 0:
@@ -434,7 +435,7 @@ def scale_deployment_and_wait(replicas, max_wait=90):
         
         while time.time() - start_wait < max_wait:
             try:
-                cmd = "kubectl get deployment prime-service -n prime-service -o json"
+                cmd = "kubectl get deployment factorial-service -n factorial-service -o json"
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
                 
                 if result.returncode == 0:
@@ -528,8 +529,8 @@ def run_comprehensive_scaling_simulation():
         writer.writerow(csv_headers)
     
     # Test configuration
-    replica_configs = [1, 2, 3, 4, 5, 6, 7, 8]
-    tests_per_replica = 10  # Good balance of quality vs time
+    replica_configs = [1, 2, 3, 4]
+    tests_per_replica = 3  # Good balance of quality vs time
     baseline_rps = None
     baseline_latency = None
     total_tests = 0
@@ -835,7 +836,7 @@ if __name__ == "__main__":
     print("")
     print("⚠️ Prerequisites:")
     print("   • Kubernetes cluster running (minikube/k8s)")
-    print("   • Prime-service deployed in 'prime-service' namespace")
+    print("   • Factorial-service deployed in 'factorial-service' namespace")
     print("   • Prometheus accessible (auto-detected)")
     print("   • Either minikube service OR port-forward active")
     print("")

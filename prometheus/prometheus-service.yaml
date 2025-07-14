@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prometheus
-  namespace: prime-service  
+  namespace: factorial-service
   labels:
     app: prometheus
 spec:

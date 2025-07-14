@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prime-service
-  namespace: prime-service
+  name: factorial-service
+  namespace: factorial-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: prime-service
+      app: factorial-service
   template:
     metadata:
       labels:
-        app: prime-service
+        app: factorial-service
     spec:
       containers:
       - name: factorial-service
