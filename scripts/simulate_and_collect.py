@@ -2,6 +2,7 @@
 """
 Complete simulate_and_collect.py - Fixed and Working Version
 Comprehensive microservice scaling analysis with all improvements and fixes
+FIXED: All namespace references corrected to 'factorial-service'
 """
 
 import time
@@ -40,8 +41,8 @@ def setup_api_connectivity():
     try:
         print("   Trying minikube service...")
         result = subprocess.run([
-            "minikube", "service", "prime-service", 
-            "-n", "prime-service", "--url"
+            "minikube", "service", "factorial-service", 
+            "-n", "factorial-service", "--url"
         ], capture_output=True, text=True, timeout=20)
         
         if result.returncode == 0 and result.stdout.strip():
@@ -70,7 +71,7 @@ def setup_api_connectivity():
     
     # Method 2: Fallback to port-forward
     print("   Trying port-forward method...")
-    FACTORIAL_API = "http://localhost:8080/factorial/{}"
+    FACTORIAL_API = "http://127.0.0.1:57737/factorial/{}" 
     
     try:
         test_response = requests.get(FACTORIAL_API.format(50), timeout=5)
@@ -79,15 +80,15 @@ def setup_api_connectivity():
             worker_pid = data.get('worker_pid', 'unknown')
             print(f"   ✅ Port-forward connectivity verified (worker PID: {worker_pid})")
             print(f"   💡 Using port-forward - make sure it's running:")
-            print(f"      kubectl port-forward -n prime-service service/prime-service 8080:80")
+            print(f"      kubectl port-forward -n factorial-service service/factorial-service 8080:80")
             return True
     except Exception as e:
         print(f"   ❌ Port-forward test failed: {e}")
     
     print(f"❌ Could not establish API connectivity")
     print(f"💡 Please ensure one of these is running:")
-    print(f"   1. minikube service prime-service -n prime-service --url")
-    print(f"   2. kubectl port-forward -n prime-service service/prime-service 8080:80")
+    print(f"   1. minikube service factorial-service -n factorial-service --url")
+    print(f"   2. kubectl port-forward -n factorial-service service/factorial-service 8080:80")
     return False
 
 def debug_prometheus_metrics():
@@ -107,7 +108,7 @@ def debug_prometheus_metrics():
             print("   ⚠️ No service metrics yet (normal if just started)")
         
         # Test CPU metrics
-        cpu_metrics = prom.custom_query('container_cpu_usage_seconds_total{namespace="prime-service"}')
+        cpu_metrics = prom.custom_query('container_cpu_usage_seconds_total{namespace="factorial-service"}')
         if cpu_metrics:
             print(f"   ✅ CPU metrics OK: {len(cpu_metrics)} series")
         else:
@@ -118,7 +119,7 @@ def debug_prometheus_metrics():
     except Exception as e:
         print(f"   ❌ Prometheus error: {e}")
         print(f"   💡 Make sure Prometheus port-forward is running:")
-        print(f"      kubectl port-forward -n prime-service service/prometheus 9090:9090")
+        print(f"      kubectl port-forward -n factorial-service service/prometheus 9090:9090")
         return False
 
 def get_enhanced_cpu_usage(replicas):
@@ -127,13 +128,13 @@ def get_enhanced_cpu_usage(replicas):
     # Try multiple query strategies - FIXED syntax
     cpu_queries = [
         # Strategy 1: Total namespace CPU (most reliable)
-        'sum(rate(container_cpu_usage_seconds_total{namespace="prime-service",container!="POD"}[1m]))',
+        'sum(rate(container_cpu_usage_seconds_total{namespace="factorial-service",container!="POD"}[1m]))',
         
         # Strategy 2: Per-pod aggregation
-        'sum by (pod_name) (rate(container_cpu_usage_seconds_total{namespace="prime-service",container!="POD"}[1m]))',
+        'sum by (pod_name) (rate(container_cpu_usage_seconds_total{namespace="factorial-service",container!="POD"}[1m]))',
         
         # Strategy 3: Simple namespace query
-        'sum(rate(container_cpu_usage_seconds_total{namespace="prime-service"}[1m]))',
+        'sum(rate(container_cpu_usage_seconds_total{namespace="factorial-service"}[1m]))',
     ]
     
     for i, query in enumerate(cpu_queries):
@@ -421,8 +422,8 @@ def scale_deployment_and_wait(replicas, max_wait=90):
     print(f"  🔄 Scaling to {replicas} replicas...")
     
     try:
-        # Scale deployment
-        cmd = f"kubectl scale deployment prime-service --replicas={replicas} -n prime-service"
+        # Scale deployment - FIXED: correct namespace and deployment name
+        cmd = f"kubectl scale deployment factorial-service --replicas={replicas} -n factorial-service"
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
         
         if result.returncode != 0:

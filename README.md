@@ -143,6 +143,9 @@ minikube service factorial-service -n factorial-service --url
 
 # Terminale 2: Prometheus
 kubectl port-forward -n factorial-service service/prometheus 9090:9090
+
+#Terminale 3
+kubectl port-forward -n factorial-service service/factorial-service 8080:80
 ```
 
 ### **Opzione B: Minikube Tunnel**
@@ -209,11 +212,6 @@ tests_per_replica = 3
 ```
 
 ### **Script di Supporto**
-
-**Verifica Connectivity:**
-```bash
-python scripts/quick_test.py
-```
 
 **Diagnosi Performance:**
 ```bash
