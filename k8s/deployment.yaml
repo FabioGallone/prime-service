@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: factorial-service
-        image: factorial-service:v1.0.0
+        image: factorial-service:v1.0.1
         imagePullPolicy: Never  
         ports:
         - containerPort: 8000

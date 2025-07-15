@@ -133,17 +133,16 @@ curl http://127.0.0.1:XXXXX/factorial/50
 Il script principale ora include auto-detection dell'URL:
 
 ```bash
+pip install -r requirements.txt
+```
+
+```bash
 python scripts/simulate_and_collect.py
 ```
 
-**Caratteristiche della versione finale:**
-- ✅ **Auto-detection** dell'URL minikube service
-- ✅ **Fallback intelligenti** per connettività
-- ✅ **Metriche complete** (25 colonne)
-- ✅ **Assessment automatico** delle performance
-- ✅ **Gestione errori robusta**
 
-### **2. Configurazioni Test**
+
+### **1. Configurazioni Test**
 
 #### **Test Veloce (15 minuti):**
 ```python
@@ -164,142 +163,6 @@ tests_per_replica = 5
 ```
 
 ---
-
-## 📈 Risultati e Metriche
-
-### **Dataset Generato: `factorial_dataset_production.csv`**
-
-**25 Colonne di Metriche:**
-- **Performance**: RPS, latency (avg/max/p95), success rate
-- **Scaling**: Efficiency vs baseline, scale factor, per-replica RPS
-- **Resources**: CPU%, Memory%, load balancing status
-- **Load**: Concurrent users, total requests, complexity distribution
-- **Power**: Power per container, total power, power efficiency
-- **Timing**: Test duration, response time inflation
-
-### **Esempio Output:**
-```csv
-timestamp,replicas,req_per_sec,scaling_efficiency_vs_baseline,load_balanced
-1752569412,1,677.8,100.0,True
-1752569465,2,810.6,59.8,True
-1752569511,3,778.5,38.3,False
-1752569556,4,676.9,25.0,False
-```
-
-### **Assessment Automatico:**
-```
-🎯 SCALING SUCCESS ASSESSMENT:
-⚠️ MODERATE. 59.8% scaling efficiency
-   Some scaling benefit but room for optimization.
-   Consider performance tuning before heavy production use.
-
-📊 IMPROVEMENT VS BROKEN LOAD BALANCING:
-   Previous (broken LB): 48.0% efficiency
-   Current (fixed LB): 59.8% efficiency
-   Improvement: +11.8 percentage points
-   ✅ SIGNIFICANT IMPROVEMENT! Reset connection helped
-```
-
----
-
-## 🔍 Troubleshooting
-
-### **Connettività API**
-```bash
-# Se l'auto-detection fallisce
-# 1. Verifica minikube service
-minikube service factorial-service -n factorial-service --url
-
-# 2. O usa port-forward
-kubectl port-forward -n factorial-service service/factorial-service 8095:80
-
-# 3. Testa manualmente
-curl http://localhost:8095/factorial/50
-```
-
-### **Problemi Comuni**
-
-#### **❌ "Could not establish API connectivity"**
-- Verifica che minikube service sia attivo
-- Controlla che i pod siano running: `kubectl get pods -n factorial-service`
-- Usa port-forward come alternativa
-
-#### **❌ "Prometheus error"**
-- Prometheus è opzionale per il funzionamento base
-- Avvia port-forward: `kubectl port-forward -n factorial-service service/prometheus 9090:9090`
-
-#### **❌ "Load balancing issues"**
-- Normale con minikube service (session affinity)
-- I risultati sono comunque validi per capacity planning
-- Documentato come limitazione infrastrutturale
-
----
-
-## 🎯 Interpretazione Risultati
-
-### **Scaling Efficiency Benchmarks:**
-- **>80%**: Eccellente (raro in produzione)
-- **60-80%**: Buono (target produzione) ← **Il tuo range**
-- **40-60%**: Moderato (accettabile)
-- **<40%**: Scarso (richiede investigazione)
-
-### **Il Tuo Risultato: 59.8%**
-- ✅ **Produzione-ready**
-- ✅ **Miglioramento significativo** (+11.8%)
-- ✅ **Baseline affidabile**: 677 RPS per replica
-- ⚠️ **Bottleneck identificato**: Infrastructure, non applicazione
-
----
-
-## 💡 Utilizzo dei Dati
-
-### **Capacity Planning**
-```python
-# Baseline: 677 RPS per replica
-# Scaling factor: 0.598 (59.8% efficiency)
-
-# Per 1000 RPS target:
-replicas_needed = 1000 / (677 * 0.598) ≈ 2.5 → 3 repliche
-```
-
-### **Auto-scaling Configuration**
-```yaml
-# Basato sui risultati reali
-spec:
-  minReplicas: 1
-  maxReplicas: 4
-  targetCPUUtilizationPercentage: 70
-  # Aspettati ~60% scaling efficiency
-```
-
-### **Performance Budgets**
-- **SLA Target**: 677 RPS per replica base
-- **Scaling Factor**: 60% efficiency
-- **Latency Budget**: <50ms avg (osservato: 15-45ms)
-
----
-
-## 🏆 Conclusioni
-
-### **✅ Successi Raggiunti:**
-1. **Microservice scalabile** con baseline 677 RPS
-2. **Identificazione bottleneck** (load balancing)
-3. **Miglioramento quantificato** (+11.8% efficiency)
-4. **Dataset produzione-ready** per capacity planning
-5. **Documentazione completa** del comportamento scaling
-
-### **📊 Dati Production-Ready:**
-- Efficiency: **59.8%** (buona per produzione)
-- Baseline: **677 RPS** per replica
-- Latenza: **15-45ms** media
-- CPU: **20-35%** sotto carico
-- Memoria: **15-30%** utilizzo
-
-### **🎯 Valore del Progetto:**
-Questo progetto dimostra un'analisi completa di microservice scaling, identificando sia le capacità dell'applicazione che i limiti dell'infrastruttura. I risultati forniscono una base solida per decisioni di produzione e capacity planning.
-
----
-
 ## 📚 Documentazione Tecnica
 
 - **Architettura**: FastAPI + Uvicorn multi-worker
