@@ -32,63 +32,31 @@ prom = PrometheusConnect(url=PROM_URL, disable_ssl=True)
 lock = Lock()
 
 def setup_api_connectivity():
-    """Setup API connectivity using minikube service URL or port-forward"""
+    """Setup API connectivity using LoadBalancer with minikube tunnel"""
     global FACTORIAL_API
     
     print("🔧 Setting up API connectivity...")
     
-    # Method 1: Try minikube service URL
-    try:
-        print("   Trying minikube service...")
-        result = subprocess.run([
-            "minikube", "service", "factorial-service", 
-            "-n", "factorial-service", "--url"
-        ], capture_output=True, text=True, timeout=20)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            urls = result.stdout.strip().split('\n')
-            
-            # Use the first URL (HTTP endpoint)
-            service_url = urls[0]
-            FACTORIAL_API = f"{service_url}/factorial/{{}}"
-            
-            print(f"   ✅ Using minikube service URL: {service_url}")
-            
-            # Test connectivity
-            test_response = requests.get(FACTORIAL_API.format(50), timeout=10)
-            if test_response.status_code == 200:
-                data = test_response.json()
-                worker_pid = data.get('worker_pid', 'unknown')
-                print(f"   ✅ API connectivity verified (worker PID: {worker_pid})")
-                return True
-            else:
-                print(f"   ❌ API test failed: {test_response.status_code}")
-                
-    except subprocess.TimeoutExpired:
-        print("   ⚠️ Minikube service command timed out")
-    except Exception as e:
-        print(f"   ⚠️ Minikube service failed: {e}")
-    
-    # Method 2: Fallback to port-forward
-    print("   Trying port-forward method...")
-    FACTORIAL_API = "http://127.0.0.1:57737/factorial/{}" 
+    # Use LoadBalancer service (requires minikube tunnel)
+    FACTORIAL_API = "http://localhost/factorial/{}"
     
     try:
-        test_response = requests.get(FACTORIAL_API.format(50), timeout=5)
+        print("   Testing LoadBalancer connectivity...")
+        test_response = requests.get(FACTORIAL_API.format(50), timeout=10)
         if test_response.status_code == 200:
             data = test_response.json()
             worker_pid = data.get('worker_pid', 'unknown')
-            print(f"   ✅ Port-forward connectivity verified (worker PID: {worker_pid})")
-            print(f"   💡 Using port-forward - make sure it's running:")
-            print(f"      kubectl port-forward -n factorial-service service/factorial-service 8080:80")
+            print(f"   ✅ LoadBalancer connectivity verified (worker PID: {worker_pid})")
+            print(f"   💡 Using minikube tunnel on localhost")
             return True
+        else:
+            print(f"   ❌ API test failed: {test_response.status_code}")
     except Exception as e:
-        print(f"   ❌ Port-forward test failed: {e}")
+        print(f"   ❌ LoadBalancer test failed: {e}")
     
     print(f"❌ Could not establish API connectivity")
-    print(f"💡 Please ensure one of these is running:")
-    print(f"   1. minikube service factorial-service -n factorial-service --url")
-    print(f"   2. kubectl port-forward -n factorial-service service/factorial-service 8080:80")
+    print(f"💡 Make sure minikube tunnel is running as Administrator:")
+    print(f"   minikube tunnel")
     return False
 
 def debug_prometheus_metrics():
