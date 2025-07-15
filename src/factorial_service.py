@@ -92,7 +92,7 @@ def light_analysis(result: int, n: int):
 
 @app.get("/factorial/{n}")
 def compute_factorial(n: int):
-    """FIXED: Endpoint factorial molto più veloce"""
+    """FIXED: Endpoint factorial molto più veloce - SEMPRE include worker_pid"""
     if n < 0:
         raise HTTPException(status_code=400, detail="Number must be non-negative")
     if n > 1000:  # RIDOTTO: limite molto più basso
@@ -107,23 +107,25 @@ def compute_factorial(n: int):
         result = calculate_factorial_optimized(n)
         computation_time = time.time() - start
         
+        # FIXED: SEMPRE include worker_pid indipendentemente dal valore di n
+        worker_pid = os.getpid()
+        
+        # Base response con worker_pid sempre incluso
+        response = {
+            "number": n,
+            "computation_time": computation_time,
+            "worker_pid": worker_pid
+        }
+        
+        # Aggiungi factorial per numeri piccoli
+        if n <= 50:
+            response["factorial"] = result
+        
         # FIXED: Analisi leggera solo per numeri > 50
         if n > 50:
             analysis = light_analysis(result, n)
-            response = {
-                "number": n,
-                "computation_time": computation_time,
-                "worker_pid": os.getpid(),
-                **analysis,
-                "note": f"Optimized factorial computed in {computation_time:.3f}s"
-            }
-        else:
-            response = {
-                "number": n, 
-                "factorial": result,
-                "computation_time": computation_time,
-                "worker_pid": os.getpid()
-            }
+            response.update(analysis)
+            response["note"] = f"Optimized factorial computed in {computation_time:.3f}s"
         
         return response
     
