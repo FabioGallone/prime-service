@@ -4,7 +4,8 @@ metadata:
   name: factorial-service
   namespace: factorial-service
 spec:
-  replicas: 1
+  # 1) Imposta qui quante repliche vuoi distribuire
+  replicas: 4
   selector:
     matchLabels:
       app: factorial-service
@@ -13,35 +14,34 @@ spec:
       labels:
         app: factorial-service
     spec:
-      # CRITICAL: Force pod distribution across different nodes
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - factorial-service
-            topologyKey: kubernetes.io/hostname
-      
+          # 2) Usando "preferred" lo spreading è un consiglio, non un blocco
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - factorial-service
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: factorial-service
         image: factorial-service:v1.0.1
-        imagePullPolicy: Never  
+        imagePullPolicy: IfNotPresent  
         ports:
         - containerPort: 8000
         
-        # OPTIMIZED: Better resources for multi-node
         resources:
           requests:
-            cpu: "0.5"      # Conservative request
+            cpu: "0.5"
             memory: "128Mi"
           limits:
-            cpu: "1.5"      # Allow burst
+            cpu: "1.5"
             memory: "512Mi"  
         
-        # Environment variables for observability
         env:
         - name: NODE_NAME
           valueFrom:

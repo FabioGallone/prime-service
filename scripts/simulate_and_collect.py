@@ -19,7 +19,7 @@ import os
 
 # ===== CONFIGURATION =====
 # API URL - UPDATE THIS WITH YOUR MINIKUBE SERVICE URL
-FACTORIAL_API = "http://127.0.0.1:64220/factorial/{}"  # UPDATE THIS URL
+FACTORIAL_API = "http://127.0.0.1:56875/factorial/{}"  # UPDATE THIS URL
 PROM_URL = "http://localhost:9090"
 CSV_FILE = "scaling_decision_dataset_expanded.csv"
 

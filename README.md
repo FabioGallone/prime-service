@@ -49,20 +49,22 @@ factorial-service/
 
 ### **1. Setup Minikube**
 
+
 #### **Windows:**
 ```powershell
 # Scarica da: https://minikube.sigs.k8s.io/docs/start/
-minikube start --nodes=1 --profile=multinodo
-# Se volessi specificare anche le risorse per ogni nodo, esempio:
-minikube start --nodes=1 --profile=multinodo --cpus=4 --memory=4096
-# Per aggiungere N nodi al cluster, eseguire N volte:
-minikube node add --profile=multinodo
+# Per creare un cluster kubernetes formato da 4 nodi (specifico anche memoria e cpu, che si riferiscono ad ogni nodo)
+minikube start --profile=multinodo --nodes=4 --cpus=4 --memory=2048mb
+
 # Per vedere tutti i nodi presenti nel cluster, eseguire
 kubectl get nodes
 #Per aggiungere una label personalizzata per chiarezza a tutti i nodi creati, esempio con cluster di 4 nodi:
 kubectl label node multinodo-m02 node-role.kubernetes.io/worker=worker
 kubectl label node multinodo-m03 node-role.kubernetes.io/worker=worker
 kubectl label node multinodo-m04 node-role.kubernetes.io/worker=worker
+
+#N.B.: Se hai già Avviato almeno una volta il programma, basta fare:
+minikube start --profile=multinodo --nodes=4
 ```
 
 #### **Linux/Mac:**
@@ -70,6 +72,8 @@ kubectl label node multinodo-m04 node-role.kubernetes.io/worker=worker
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 sudo install minikube-linux-amd64 /usr/local/bin/minikube
 minikube start --nodes=1 --profile=multinodo
+
+
 # Se volessi specificare anche le risorse per ogni nodo, esempio:
 minikube start --nodes=1 --profile=multinodo --cpus=4 --memory=4096
 # Per aggiungere N nodi al cluster, eseguire N volte:
@@ -95,17 +99,31 @@ minikube delete --profile=multinodo
 git clone https://github.com/FabioGallone/factorial-service.git
 cd factorial-service
 
-# Build dell'immagine (versione aggiornata)
-minikube image build -t factorial-service:v1.0.1 . --profile=multinodo
+# 1) Costruisci l'immagine nel Docker locale
+docker build -t factorial-service:v1.0.1 .
+
+# 2) Carica l'immagine in tutti i nodi del profilo 'multinodo'
+minikube image load factorial-service:v1.0.1 --profile=multinodo
+
+# Deploy namespace e servizi
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+
+# 3) Applica (o ri-applica) il Deployment per usare l'immagine già in cache
+kubectl apply -f k8s/deployment.yaml -n factorial-service
+
+# 4) Riavvia il rollout per far ripartire i pod
+kubectl rollout restart deployment factorial-service -n factorial-service
+
+# 5) Controlla che i pod escano da ContainerCreating e passino a Running
+kubectl get pods -n factorial-service -o wide
 
 ```
 
 ### **3. Deploy Kubernetes**
 ```bash
-# Deploy namespace e servizi
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
+
 
 # Deploy monitoring
 kubectl apply -f kube-state-metrics.yaml
@@ -118,6 +136,19 @@ kubectl get pods -n factorial-service
 kubectl get services -n factorial-service
 ```
 
+### **4. Verifica Distribuzione Multi-Nodo**
+```bash
+
+# Scala a 4 repliche e verifica distribuzione
+kubectl scale deployment factorial-service --replicas=4 -n factorial-service
+
+# Aspetta che siano ready
+kubectl get pods -n factorial-service -w
+
+# Verifica distribuzione sui nodi
+kubectl get pods -n factorial-service -o wide
+```
+
 ---
 
 ## 🔧 Configurazione Connettività (AGGIORNATA)
@@ -125,11 +156,15 @@ kubectl get services -n factorial-service
 ### **Opzione A: Minikube Service (Raccomandato)**
 ```bash
 # Terminale 1: Servizio API (LASCIA APERTO)
-minikube service factorial-service -n factorial-service --url
+minikube service factorial-service -n factorial-service --url --profile=multinodo
 # Output: http://127.0.0.1:XXXXX (nota la porta)
+
+# Copiare L'URL che viene fornito e copiarlo in FACTORIAL_API nello script scripts/simulate_and_collect.py
 
 # Terminale 2: Prometheus (opzionale)
 kubectl port-forward -n factorial-service service/prometheus 9090:9090
+
+
 ```
 
 ### **Opzione B: Port-Forward (Alternativa)**
@@ -159,9 +194,6 @@ Il script principale ora include auto-detection dell'URL:
 pip install -r requirements.txt
 ```
 
-```bash
-pip install -r requirements.txt
-```
 
 ```bash
 python scripts/simulate_and_collect.py
