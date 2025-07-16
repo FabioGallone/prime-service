@@ -59,6 +59,10 @@ minikube start --nodes=1 --profile=multinodo --cpus=4 --memory=4096
 minikube node add --profile=multinodo
 # Per vedere tutti i nodi presenti nel cluster, eseguire
 kubectl get nodes
+#Per aggiungere una label personalizzata per chiarezza a tutti i nodi creati, esempio con cluster di 4 nodi:
+kubectl label node multinodo-m02 node-role.kubernetes.io/worker=worker
+kubectl label node multinodo-m03 node-role.kubernetes.io/worker=worker
+kubectl label node multinodo-m04 node-role.kubernetes.io/worker=worker
 ```
 
 #### **Linux/Mac:**
@@ -91,12 +95,9 @@ minikube delete --profile=multinodo
 git clone https://github.com/FabioGallone/factorial-service.git
 cd factorial-service
 
-# Configura Docker per Minikube
-eval $(minikube docker-env)  # Linux/Mac
-# minikube docker-env | Invoke-Expression  # Windows PowerShell
-
 # Build dell'immagine (versione aggiornata)
-docker build -t factorial-service:v1.0.1 .
+minikube image build -t factorial-service:v1.0.1 . --profile=multinodo
+
 ```
 
 ### **3. Deploy Kubernetes**

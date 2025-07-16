@@ -13,22 +13,55 @@ spec:
       labels:
         app: factorial-service
     spec:
+      # CRITICAL: Force pod distribution across different nodes
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - factorial-service
+            topologyKey: kubernetes.io/hostname
+      
       containers:
       - name: factorial-service
         image: factorial-service:v1.0.1
         imagePullPolicy: Never  
         ports:
         - containerPort: 8000
+        
+        # OPTIMIZED: Better resources for multi-node
         resources:
           requests:
-            cpu: "500m"      # 0.5 core
+            cpu: "0.5"      # Conservative request
             memory: "128Mi"
           limits:
-            cpu: "2000m"     # 2 core
+            cpu: "1.5"      # Allow burst
             memory: "512Mi"  
+        
+        # Environment variables for observability
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        
         readinessProbe:
           httpGet:
             path: /factorial/10
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
