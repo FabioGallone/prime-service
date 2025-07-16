@@ -17,7 +17,7 @@ import sys
 
 # ===== CONFIGURATION =====
 # API URL - UPDATE THIS WITH YOUR MINIKUBE SERVICE URL
-FACTORIAL_API = "http://127.0.0.1:50314/factorial/{}"  # UPDATE THIS URL
+FACTORIAL_API = "http://127.0.0.1:51957/factorial/{}"  # UPDATE THIS URL
 PROM_URL = "http://localhost:9090"
 CSV_FILE = "factorial_dataset_simplified.csv"
 
@@ -25,21 +25,19 @@ CSV_FILE = "factorial_dataset_simplified.csv"
 CPU_LIMIT_CORES = 2.0
 MEMORY_LIMIT_BYTES = 512 * 1024 * 1024
 
-# SIMPLIFIED WORKLOAD SCENARIOS - Focus on variety without complexity
+# SIMPLIFIED WORKLOAD SCENARIOS - With variation ranges
 WORKLOAD_SCENARIOS = [
-    # (concurrent_users, total_requests, complexity_min, complexity_max, scenario_name)
-    (5, 50, 30, 80, "light_load"),
-    (10, 100, 50, 150, "medium_load"),
-    (15, 150, 100, 250, "heavy_load"),
-    (20, 200, 30, 200, "variable_load"),
-    (25, 250, 150, 300, "stress_load"),
-    (30, 300, 50, 400, "peak_load"),
-    
-    # ADDITIONAL SCENARIOS - 4 new patterns
-    (8, 80, 20, 60, "burst_light"),        # Burst traffic with light complexity
-    (35, 350, 200, 500, "intensive_load"), # High users + high complexity
-    (12, 120, 100, 100, "uniform_load"),   # Consistent complexity pattern
-    (40, 200, 25, 350, "extreme_variable") # High variability in complexity
+    # (users_min, users_max, requests_min, requests_max, complexity_min, complexity_max, scenario_name)
+    (3, 8, 30, 70, 30, 80, "light_load"),
+    (8, 15, 80, 150, 50, 150, "medium_load"),
+    (12, 20, 120, 200, 100, 250, "heavy_load"),
+    (15, 25, 150, 250, 30, 200, "variable_load"),
+    (20, 35, 200, 300, 150, 300, "stress_load"),
+    (25, 40, 250, 400, 50, 400, "peak_load"),
+    (5, 12, 60, 120, 20, 60, "burst_light"),        
+    (30, 45, 300, 450, 200, 500, "intensive_load"), 
+    (10, 15, 100, 150, 90, 110, "uniform_load"),   
+    (35, 50, 180, 280, 25, 350, "extreme_variable")
 ]
 
 # Global variables
@@ -189,7 +187,14 @@ def run_simplified_test():
         print("❌ ABORT: Could not establish API connectivity")
         return False
     
-    # Simplified CSV headers - only essential metrics
+    # CONFIGURAZIONE TEST PER REPLICA - Modifica qui!
+    replica_configs = [1, 2, 3, 4]  # Quali configurazioni di replica testare
+    runs_per_config = 3              # Quanti test per ogni configurazione replica/scenario
+    
+    test_id = 0
+    total_tests = len(WORKLOAD_SCENARIOS) * len(replica_configs) * runs_per_config
+    
+    # Update CSV headers based on runs configuration
     csv_headers = [
         # Workload metrics
         "concurrent_users",
@@ -209,100 +214,136 @@ def run_simplified_test():
         # Complexity metrics
         "complexity_avg",
         "complexity_max",
-        
-        # Metadata
-        "scenario_name",
-        "timestamp",
-        "test_duration"
     ]
+    
+    # Add run_number column if multiple runs
+    if runs_per_config > 1:
+        csv_headers.extend([
+            "run_number",
+            "scenario_name",
+            "timestamp",
+            "test_duration"
+        ])
+    else:
+        csv_headers.extend([
+            "scenario_name",
+            "timestamp",
+            "test_duration"
+        ])
     
     with open(CSV_FILE, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(csv_headers)
-    
-    replica_configs = [1, 2, 3, 4]
-    test_id = 0
-    total_tests = len(WORKLOAD_SCENARIOS) * len(replica_configs)
     
     print(f"⏱️ Estimated duration: {(total_tests * 1.2):.0f} minutes")
     print(f"💾 Output file: {CSV_FILE}")
     print(f"🧪 Total tests: {total_tests}")
     
     for scenario in WORKLOAD_SCENARIOS:
-        users, total_requests, complexity_min, complexity_max, scenario_name = scenario
+        users_min, users_max, requests_min, requests_max, complexity_min, complexity_max, scenario_name = scenario
         
         print(f"\n📊 SCENARIO: {scenario_name}")
-        print(f"   Users: {users}, Requests: {total_requests}, Complexity: {complexity_min}-{complexity_max}")
+        print(f"   Users: {users_min}-{users_max}, Requests: {requests_min}-{requests_max}, Complexity: {complexity_min}-{complexity_max}")
         
         for replica_count in replica_configs:
-            test_id += 1
-            progress = (test_id / total_tests) * 100
-            
-            print(f"\n  🎯 Test {test_id}/{total_tests} [{progress:.1f}%] - {replica_count} replicas")
-            
-            # Scale to target replica count
-            if not scale_deployment_and_wait(replica_count):
-                print(f"    ⚠️ Scaling issues, continuing...")
-            
-            actual_replicas = get_replica_count()
-            
-            # Generate workload queue
-            queue = []
-            for i in range(total_requests):
-                complexity = random.randint(complexity_min, complexity_max)
-                queue.append(complexity)
-            
-            complexity_avg = statistics.mean(queue)
-            complexity_max_val = max(queue)
-            
-            print(f"    📊 Load: {total_requests} requests, {users} users")
-            print(f"    🎯 Complexity: avg={complexity_avg:.0f}, max={complexity_max_val}")
-            
-            # Execute test
-            test_start = time.time()
-            response_times = []
-            actual_complexity_stats = []
-            test_duration = min(25, max(10, total_requests // 10))
-            stop_time = test_start + test_duration
-            
-            print(f"    ⏱️ Running {test_duration}s test...")
-            
-            # Create worker threads
-            threads = [Thread(target=workload_worker, 
-                            args=(queue, response_times, actual_complexity_stats, stop_time)) 
-                      for _ in range(users)]
-            
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join()
-            
-            elapsed_time = time.time() - test_start
-            
-            # Calculate metrics
-            if len(response_times) >= 3:
-                # Performance metrics
-                requests_per_second = len(response_times) / elapsed_time
-                avg_response_time = statistics.mean(response_times)
-                max_response_time = max(response_times)
-                p95_response_time = sorted(response_times)[int(len(response_times) * 0.95)]
+            for run_number in range(runs_per_config):
+                test_id += 1
+                progress = (test_id / total_tests) * 100
                 
-                # Resource metrics
-                cpu_percent = get_cpu_usage(actual_replicas)
-                memory_percent = get_memory_usage(actual_replicas)
-                
-                # Complexity metrics (use actual processed requests if available)
-                if actual_complexity_stats:
-                    actual_complexity_avg = statistics.mean(actual_complexity_stats)
-                    actual_complexity_max = max(actual_complexity_stats)
+                if runs_per_config > 1:
+                    print(f"\n  🎯 Test {test_id}/{total_tests} [{progress:.1f}%] - {replica_count} replicas - Run {run_number + 1}/{runs_per_config}")
                 else:
-                    actual_complexity_avg = complexity_avg
-                    actual_complexity_max = complexity_max_val
+                    print(f"\n  🎯 Test {test_id}/{total_tests} [{progress:.1f}%] - {replica_count} replicas")
                 
-                # Save to CSV
-                with open(CSV_FILE, 'a', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([
+                # Scale to target replica count (only on first run for each replica count)
+                if run_number == 0:
+                    if not scale_deployment_and_wait(replica_count):
+                        print(f"    ⚠️ Scaling issues, continuing...")
+                
+                actual_replicas = get_replica_count()
+                
+                # GENERATE VARIED WORKLOAD FOR EACH RUN
+                # Vary users and requests within scenario ranges
+                if runs_per_config > 1:
+                    random.seed(42 + run_number)  # Consistent but varied seed per run
+                
+                # Vary users within range
+                users = random.randint(users_min, users_max)
+                # Vary total requests within range
+                total_requests = random.randint(requests_min, requests_max)
+                
+                # Generate workload queue with varied complexity
+                queue = []
+                for i in range(total_requests):
+                    complexity = random.randint(complexity_min, complexity_max)
+                    queue.append(complexity)
+                
+                if runs_per_config > 1:
+                    random.seed()  # Reset seed
+                
+                complexity_avg = statistics.mean(queue)
+                complexity_max_val = max(queue)
+                
+                if run_number == 0 or runs_per_config == 1:  # Only print details on first run
+                    print(f"    📊 Load: {total_requests} requests, {users} users")
+                    print(f"    🎯 Complexity: avg={complexity_avg:.0f}, max={complexity_max_val}")
+                else:
+                    print(f"    📊 Varied Load: {total_requests} requests, {users} users (complexity: {complexity_avg:.0f})")
+                
+                # Execute test - OPZIONI DI DURATA TEST
+                test_start = time.time()
+                response_times = []
+                actual_complexity_stats = []
+                
+                # OPZIONE 1: Durata fissa (attuale)
+                test_duration = min(25, max(10, total_requests // 10))
+                stop_time = test_start + test_duration
+                
+                # OPZIONE 2: Solo completamento richieste (decommentare per usare)
+                # stop_time = test_start + 300  # Max 5 minuti di sicurezza
+                
+                # OPZIONE 3: Durata basata su complessità (decommentare per usare)
+                # avg_complexity = statistics.mean(queue)
+                # test_duration = min(30, max(15, avg_complexity // 20))
+                # stop_time = test_start + test_duration
+                
+                if run_number == 0 or runs_per_config == 1:
+                    print(f"    ⏱️ Running {test_duration}s test...")
+                
+                # Create worker threads
+                threads = [Thread(target=workload_worker, 
+                                args=(queue, response_times, actual_complexity_stats, stop_time)) 
+                          for _ in range(users)]
+                
+                for thread in threads:
+                    thread.start()
+                for thread in threads:
+                    thread.join()
+                
+                elapsed_time = time.time() - test_start
+                
+                # Calculate metrics
+                if len(response_times) >= 3:
+                    # Performance metrics
+                    requests_per_second = len(response_times) / elapsed_time
+                    avg_response_time = statistics.mean(response_times)
+                    max_response_time = max(response_times)
+                    p95_response_time = sorted(response_times)[int(len(response_times) * 0.95)]
+                    
+                    # Resource metrics
+                    cpu_percent = get_cpu_usage(actual_replicas)
+                    memory_percent = get_memory_usage(actual_replicas)
+                    
+                    # Complexity metrics (use actual processed requests if available)
+                    if actual_complexity_stats:
+                        actual_complexity_avg = statistics.mean(actual_complexity_stats)
+                        actual_complexity_max = max(actual_complexity_stats)
+                    else:
+                        actual_complexity_avg = complexity_avg
+                        actual_complexity_max = complexity_max_val
+                    
+                    # Add run_number to CSV headers if multiple runs
+                    csv_row = [
                         # Workload metrics
                         users,
                         round(requests_per_second, 1),
@@ -326,21 +367,36 @@ def run_simplified_test():
                         scenario_name,
                         int(time.time()),
                         round(elapsed_time, 1)
-                    ])
+                    ]
+                    
+                    # Add run number if multiple runs
+                    if runs_per_config > 1:
+                        csv_row.insert(-3, run_number + 1)  # Insert before metadata
+                    
+                    # Save to CSV
+                    with open(CSV_FILE, 'a', newline='') as f:
+                        writer = csv.writer(f)
+                        writer.writerow(csv_row)
+                    
+                    # Results summary
+                    if runs_per_config > 1:
+                        print(f"    ✅ Run {run_number + 1} RESULTS:")
+                    else:
+                        print(f"    ✅ RESULTS:")
+                    print(f"       📈 Workload: {requests_per_second:.1f} RPS, {users} users")
+                    print(f"       💻 Resources: {cpu_percent:.1f}% CPU, {memory_percent:.1f}% Memory")
+                    print(f"       ⏱️ Response: {avg_response_time:.3f}s avg, {p95_response_time:.3f}s p95")
+                    print(f"       🧮 Complexity: avg={actual_complexity_avg:.0f}, max={actual_complexity_max}")
+                    print(f"       🔢 Replicas: {actual_replicas}")
+                    
+                else:
+                    print(f"    ❌ Insufficient data ({len(response_times)} requests)")
+                    continue
                 
-                # Results summary
-                print(f"    ✅ RESULTS:")
-                print(f"       📈 Workload: {requests_per_second:.1f} RPS, {users} users")
-                print(f"       💻 Resources: {cpu_percent:.1f}% CPU, {memory_percent:.1f}% Memory")
-                print(f"       ⏱️ Response: {avg_response_time:.3f}s avg, {p95_response_time:.3f}s p95")
-                print(f"       🧮 Complexity: avg={actual_complexity_avg:.0f}, max={actual_complexity_max}")
-                print(f"       🔢 Replicas: {actual_replicas}")
-                
-            else:
-                print(f"    ❌ Insufficient data ({len(response_times)} requests)")
-                continue
+                if runs_per_config > 1 and run_number < runs_per_config - 1:
+                    time.sleep(1)  # Brief pause between runs
             
-            time.sleep(2)  # Brief pause between tests
+            time.sleep(2)  # Brief pause between scenarios
     
     print(f"\n🎉 SIMPLIFIED DATASET GENERATION COMPLETED!")
     print(f"📄 Results saved to: {CSV_FILE}")
