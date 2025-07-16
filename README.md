@@ -52,15 +52,38 @@ factorial-service/
 #### **Windows:**
 ```powershell
 # Scarica da: https://minikube.sigs.k8s.io/docs/start/
-minikube start --cpus=4 --memory=4096
+minikube start --nodes=1 --profile=multinodo
+# Se volessi specificare anche le risorse per ogni nodo, esempio:
+minikube start --nodes=1 --profile=multinodo --cpus=4 --memory=4096
+# Per aggiungere N nodi al cluster, eseguire N volte:
+minikube node add --profile=multinodo
+# Per vedere tutti i nodi presenti nel cluster, eseguire
+kubectl get nodes
 ```
 
 #### **Linux/Mac:**
 ```bash
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 sudo install minikube-linux-amd64 /usr/local/bin/minikube
-minikube start --cpus=4 --memory=4096
+minikube start --nodes=1 --profile=multinodo
+# Se volessi specificare anche le risorse per ogni nodo, esempio:
+minikube start --nodes=1 --profile=multinodo --cpus=4 --memory=4096
+# Per aggiungere N nodi al cluster, eseguire N volte:
+minikube node add --profile=multinodo
+# Per vedere tutti i nodi presenti nel cluster, eseguire
+kubectl get nodes
+
+#Per aggiungere una label personalizzata per chiarezza a tutti i nodi creati, esempio con cluster di 4 nodi:
+kubectl label node multinodo-m02 node-role.kubernetes.io/worker=worker
+kubectl label node multinodo-m03 node-role.kubernetes.io/worker=worker
+kubectl label node multinodo-m04 node-role.kubernetes.io/worker=worker
+
+
+# JUST TO KNOW:
+# Per cancellare un profilo specifico:
+minikube delete --profile=multinodo
 ```
+
 
 ### **2. Clone e Build**
 ```bash
@@ -131,6 +154,9 @@ curl http://127.0.0.1:XXXXX/factorial/50
 
 ### **1. Script Principale (AUTO-DETECTION)**
 Il script principale ora include auto-detection dell'URL:
+```bash
+pip install -r requirements.txt
+```
 
 ```bash
 pip install -r requirements.txt
@@ -163,6 +189,19 @@ tests_per_replica = 5
 ```
 
 ---
+
+<<<<<<< HEAD
+
+
+
+
+### **🎯 Valore del Progetto:**
+Questo progetto dimostra un'analisi completa di microservice scaling, identificando sia le capacità dell'applicazione che i limiti dell'infrastruttura. I risultati forniscono una base solida per decisioni di produzione e capacity planning.
+
+---
+
+=======
+>>>>>>> af21c48583de03fdf229ec5fc9b2f794acc93d01
 ## 📚 Documentazione Tecnica
 
 - **Architettura**: FastAPI + Uvicorn multi-worker
