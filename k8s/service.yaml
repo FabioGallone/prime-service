@@ -11,9 +11,11 @@ spec:
     protocol: TCP
     port: 80
     targetPort: 8000
+    nodePort: 30080  # Porta esposta sui nodi
   - name: metrics
     protocol: TCP
     port: 8001
     targetPort: 8001
-  type: LoadBalancer 
+    nodePort: 30081  # Porta per metriche Prometheus
+  type: NodePort
   sessionAffinity: None

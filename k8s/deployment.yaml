@@ -16,7 +16,7 @@ spec:
     spec:
       affinity:
         podAntiAffinity:
-          # 2) Usando "preferred" lo spreading è un consiglio, non un blocco
+
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
             podAffinityTerm:
