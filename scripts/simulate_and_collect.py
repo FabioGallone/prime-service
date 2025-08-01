@@ -16,17 +16,16 @@ import random
 import subprocess
 import sys
 
-# ===== CONFIGURATION =====
-# API URL - UPDATE THIS WITH YOUR MINIKUBE SERVICE URL
-FACTORIAL_API = "http://127.0.0.1:55247/factorial/{}"  # UPDATE THIS URL
+
+FACTORIAL_API = "http://127.0.0.1:55247/factorial/{}"  # AGGIORNARE QUESTO URL
 PROM_URL = "http://localhost:9090"
 CSV_FILE = "factorial_dataset_simplified.csv"
 
-# Container limits for resource calculations
+# Container limits
 CPU_LIMIT_CORES = 2.0
 MEMORY_LIMIT_BYTES = 512 * 1024 * 1024
 
-# SIMPLIFIED WORKLOAD SCENARIOS - With variation ranges
+# WORKLOAD SCENARIOS
 WORKLOAD_SCENARIOS = [
     # (users_min, users_max, requests_min, requests_max, complexity_min, complexity_max, scenario_name)
     (3, 8, 30, 70, 30, 80, "light_load"),
@@ -41,12 +40,16 @@ WORKLOAD_SCENARIOS = [
     (35, 50, 180, 280, 25, 350, "extreme_variable")
 ]
 
-# Global variables
 prom = PrometheusConnect(url=PROM_URL, disable_ssl=True)
 lock = Lock()
 
 def setup_api_connectivity():
-    """Setup and verify API connectivity"""
+#Testa connettività al servizio
+#Verifica che l'API risponda correttamente
+#Mostra worker PID per confermare funzionamento
+#Blocca esecuzione se API non raggiungibile
+
+
     print("🔧 Setting up API connectivity...")
     print(f"   Using URL: {FACTORIAL_API.format('N')}")
     
@@ -65,11 +68,10 @@ def setup_api_connectivity():
     return False
 
 def get_cpu_usage(replicas):
-    """Get current CPU usage percentage"""
     try:
-        # Try Prometheus first
         result = prom.custom_query('avg(rate(container_cpu_usage_seconds_total{namespace="factorial-service",container!="POD"}[1m]))')
         if result and len(result) > 0:
+            #converte quella stringa di Prometheus in un float Python
             cpu_cores = float(result[0]['value'][1])
             cpu_percentage = min((cpu_cores / CPU_LIMIT_CORES) * 100, 95.0)
             if 0.1 <= cpu_percentage <= 95.0:
@@ -83,7 +85,7 @@ def get_cpu_usage(replicas):
     return min(base_cpu * replica_efficiency + random.uniform(5, 15), 85.0)
 
 def get_memory_usage(replicas):
-    """Get current memory usage percentage"""
+
     try:
         # Try Prometheus first
         result = prom.custom_query('avg(container_memory_working_set_bytes{namespace="factorial-service",container!="POD"})')
@@ -115,7 +117,6 @@ def get_replica_count():
     return 1
 
 def workload_worker(queue, response_times, complexity_stats, stop_time):
-    """Worker thread for generating load"""
     while time.time() < stop_time:
         try:
             if not queue:
@@ -128,6 +129,10 @@ def workload_worker(queue, response_times, complexity_stats, stop_time):
             start = time.time()
             
             try:
+                #QUI È LA CHIAMATA AL SERVIZIO FACTORIAL!
+                #Se FACTORIAL_API = "http://127.0.0.1:55247/factorial/{}"
+                # E n = 78
+                # Risultato: "http://127.0.0.1:55247/factorial/78"
                 response = requests.get(FACTORIAL_API.format(n), timeout=10)
                 response.raise_for_status()
                 elapsed = time.time() - start
@@ -143,7 +148,6 @@ def workload_worker(queue, response_times, complexity_stats, stop_time):
             break
 
 def scale_deployment_and_wait(replicas, max_wait=60):
-    """Scale deployment and wait for readiness"""
     print(f"🔄 Scaling deployment to {replicas} replicas...")
     
     try:
@@ -160,7 +164,7 @@ def scale_deployment_and_wait(replicas, max_wait=60):
             ready_replicas = get_replica_count()
             if ready_replicas >= replicas:
                 print(f"✅ {ready_replicas} replicas ready!")
-                time.sleep(5)  # Brief stabilization wait
+                time.sleep(5)  #
                 return True
             time.sleep(2)
         
@@ -201,7 +205,7 @@ def run_simplified_test():
     print(f"   Runs per scenario: {runs_per_scenario}")
     print(f"   Total tests: {total_tests}")
     
-    # CSV headers
+    # CSV features
     csv_headers = [
         "concurrent_users", "requests_per_second", "total_requests",
         "cpu_percent", "memory_percent", "replicas",
@@ -225,14 +229,13 @@ def run_simplified_test():
         print(f"🔢 TESTING WITH {replica_count} REPLICAS")
         print(f"{'='*70}")
         
-        # Scale once per replica group
         if not scale_deployment_and_wait(replica_count):
             print(f"⚠️ Scaling issues, continuing...")
         
         actual_replicas = get_replica_count()
         print(f"✅ Confirmed: {actual_replicas} replicas ready\n")
         
-        # Run all scenarios for this replica count
+    
         for scenario in WORKLOAD_SCENARIOS:
             users_min, users_max, requests_min, requests_max, complexity_min, complexity_max, scenario_name = scenario
             
@@ -277,6 +280,7 @@ def run_simplified_test():
                     print(f"    ⏱️ Running {test_duration}s test...")
                 
                 # Create worker threads
+                #rea thread concorrenti per simulare utenti reali che fanno richieste simultanee al servizio.
                 threads = [Thread(target=workload_worker, 
                                 args=(queue, response_times, actual_complexity_stats, stop_time)) 
                           for _ in range(users)]
@@ -321,7 +325,7 @@ def run_simplified_test():
                         writer = csv.writer(f)
                         writer.writerow(csv_row)
                     
-                    # Results summary
+                    
                     print(f"    ✅ Run {run_number + 1} RESULTS:")
                     print(f"       📈 Workload: {requests_per_second:.1f} RPS, {users} users")
                     print(f"       💻 Resources: {cpu_percent:.1f}% CPU, {memory_percent:.1f}% Memory")

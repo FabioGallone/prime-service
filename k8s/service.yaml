@@ -15,5 +15,5 @@ spec:
     protocol: TCP
     port: 8001
     targetPort: 8001
-  type: LoadBalancer  # Cambiato da NodePort
+  type: LoadBalancer 
   sessionAffinity: None
