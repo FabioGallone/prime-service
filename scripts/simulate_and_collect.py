@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 
-FACTORIAL_API = "http://127.0.0.1:55247/factorial/{}"  # AGGIORNARE QUESTO URL
+FACTORIAL_API = "http://192.168.1.240:30080/factorial/{}"
 PROM_URL = "http://localhost:9090"
 CSV_FILE = "factorial_dataset_simplified.csv"
 
